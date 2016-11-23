@@ -1,0 +1,24 @@
+<package format="2">
+  <name>qb_device</name>
+  <version>3.0.0</version>
+  <description>
+    This package contains the common ROS structures for qb devices <!--TODO: add details-->
+  </description>
+  <author>Alessandro Tondo at qb Robotics</author>
+  <maintainer email="alessandro.tondo@qbrobotics.com">Alessandro Tondo</maintainer>
+  <license><!--TODO: choose license--> not empty just to be compiled </license>
+
+  <url type="bugtracker">https://github.com/qbrobotics/qb_device/issues</url>
+  <url type="repository">https://github.com/qbrobotics/qb_device</url>
+  <url type="website">http://www.qbrobotics.com/</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>qb_device_driver</exec_depend>
+  <exec_depend>qb_device_hardware_interface</exec_depend>
+  <exec_depend>qb_device_msgs</exec_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>

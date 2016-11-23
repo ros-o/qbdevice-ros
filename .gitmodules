@@ -1,0 +1,3 @@
+[submodule "qb_device_driver/lib"]
+	path = qb_device_driver/lib
+	url = https://github.com/qbrobotics/qbAPI.git

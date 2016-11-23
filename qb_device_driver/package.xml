@@ -1,0 +1,19 @@
+<package format="2">
+  <name>qb_device_driver</name>
+  <version>3.0.0</version>
+  <description>
+    This package contains the qbAPI ROS wrapper <!--TODO: add details-->
+  </description>
+  <author>Alessandro Tondo at qb Robotics</author>
+  <maintainer email="alessandro.tondo@qbrobotics.com">Alessandro Tondo</maintainer>
+  <license><!--TODO: choose license--> not empty just to be compiled </license>
+
+  <url type="bugtracker">https://github.com/qbrobotics/qb_device/issues</url>
+  <url type="repository">https://github.com/qbrobotics/qb_device</url>
+  <url type="website">http://www.qbrobotics.com/</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!--TODO: <test_depend>gtest</test_depend>-->
+  <!--TODO: <doc_depend>doxygen</doc_depend>-->
+</package>
