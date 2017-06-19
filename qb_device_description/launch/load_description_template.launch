@@ -1,0 +1,9 @@
+<launch>
+  <arg name="model_name" default="qbdevice" doc="The name of the URDF model to be loaded."/>
+  <arg name="namespace" default="qbdevice" doc="The namespace prefix of joints and links (necessary with many devices)."/>
+  <arg name="package_prefix" default="qb_device" doc="The base package name prefix."/>
+
+  <!-- load the URDF model into the ROS Parameter Server -->
+  <param name="robot_description"
+         command="$(eval 'xacro --inorder ' + find(package_prefix + '_description') + '/urdf/' + model_name + '.urdf.xacro namespace:=' + namespace)"/>
+</launch>

@@ -25,13 +25,13 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef QB_DEVICE_MSGS_H
-#define QB_DEVICE_MSGS_H
+#include <qb_device_driver/qb_device_communication_handler.h>
 
-// auto-generated msg headers
-#include <qb_device_msgs/Info.h>
-#include <qb_device_msgs/ResourceData.h>
-#include <qb_device_msgs/State.h>
-#include <qb_device_msgs/StateStamped.h>
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "qb_device_communication_handler");
 
-#endif //QB_DEVICE_MSGS_H
+  qb_device_communication_handler::qbDeviceCommunicationHandler comunication_handler;
+  ros::waitForShutdown();
+
+  return 0;
+}

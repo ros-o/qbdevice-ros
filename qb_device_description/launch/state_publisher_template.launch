@@ -1,0 +1,30 @@
+<launch>
+  <arg name="frequency" default="100" doc="The frequency of the two state publishers."/>
+  <arg name="package_prefix" default="qb_device" doc="The base package name prefix."/>
+  <arg name="rviz_config" default="qbdevice" doc="The name of the rviz configuration."/>
+  <arg name="source_list_names" default="[joint_states]" doc="The name source list for the joint_state_publisher."/>
+  <arg name="use_joint_state_gui" default="false" doc="Choose whether or not to use the joint state publisher GUI."/>
+  <arg name="use_rviz" default="true" doc="Choose whether or not to use rviz."/>
+  <arg name="output" default="log" doc="Set the stdout to [screen] or to [log] (stderr is always promped to screen)."/>
+
+  <!-- make joint values available -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"
+        respawn="false" output="screen">
+    <param name="rate" value="$(arg frequency)"/>
+    <rosparam param="source_list" subst_value="True">$(arg source_list_names)</rosparam>
+    <param name="use_gui" value="$(arg use_joint_state_gui)"/>
+    <param name="use_mimic_tags" value="true"/>
+  </node>
+  <!-- convert joint states to TF transforms for rviz, etc -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="false" output="screen">
+    <remap from="/joint_states" to="joint_states"/>
+    <param name="publish_frequency" value="$(arg frequency)"/>
+    <param name="tf_prefix" value=""/>
+  </node>
+  <!-- load rviz -->
+  <node name="rviz" pkg="rviz" type="rviz"
+        respawn="false" output="$(arg output)"
+        args="$(eval '-d ' + find(package_prefix + '_description') + '/rviz/' + rviz_config + '.rviz')"
+        if="$(arg use_rviz)"/>
+</launch>

@@ -1,0 +1,6 @@
+# request
+int32 id
+---
+# response
+bool success
+string message

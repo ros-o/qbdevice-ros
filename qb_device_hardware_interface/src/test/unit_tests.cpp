@@ -25,13 +25,44 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef QB_DEVICE_MSGS_H
-#define QB_DEVICE_MSGS_H
+// Google Testing Framework
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+// qb robotics libraries
+#include <qb_device_hardware_interface/qb_device_hardware_interface.h>
 
-// auto-generated msg headers
-#include <qb_device_msgs/Info.h>
-#include <qb_device_msgs/ResourceData.h>
-#include <qb_device_msgs/State.h>
-#include <qb_device_msgs/StateStamped.h>
+TEST(Resources, Constructors) {
+  // positive tests
+  qb_device_hardware_interface::qbDeviceResources default_constructor;
+  EXPECT_EQ(1, default_constructor.id);
+  EXPECT_EQ(+1, default_constructor.motor_axis_direction);
 
-#endif //QB_DEVICE_MSGS_H
+  std::vector<int> right_ids = {0, 1, -1, 255, -255};
+  for (auto const id : right_ids) {
+    qb_device_hardware_interface::qbDeviceResources constructor(id);
+    EXPECT_EQ(std::abs(id), constructor.id);
+    if (id > 0) {
+      EXPECT_EQ(+1, constructor.motor_axis_direction);
+    } else if (id < 0) {
+      EXPECT_EQ(-1, constructor.motor_axis_direction);
+    } else {
+      EXPECT_EQ(0, constructor.motor_axis_direction);  // zero is the broadcast id (i.e. no motor is controlled)
+    }
+  }
+
+  // negative tests
+  std::vector<int> wrong_ids = {256, -256};
+  for (auto const id : wrong_ids) {
+    qb_device_hardware_interface::qbDeviceResources constructor(id);
+    //FIXME
+  }
+}
+
+
+int main(int argc, char **argv) {
+//  testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleMock(&argc, argv);
+//  testing::FLAGS_gmock_verbose = "info";
+  ros::init(argc, argv, "unit_tests");
+  return RUN_ALL_TESTS();
+}

@@ -1,0 +1,5 @@
+<launch>
+  <node name="qb_device_communication_handler" pkg="qb_device_driver" type="qb_device_communication_handler"
+        respawn="true" output="screen">
+  </node>
+</launch>

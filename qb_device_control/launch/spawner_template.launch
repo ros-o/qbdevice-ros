@@ -1,0 +1,18 @@
+<launch>
+  <arg name="controllers" default="" doc="The controllers to be spawned (e.g. *_trajectory_controller)."/>
+  <arg name="namespace" default="qbdevice" doc="The namespace prefix of the controllers (necessary with many devices)."/>
+  <arg name="package_prefix" default="qb_device" doc="The base package name prefix."/>
+  <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
+  <arg name="output" default="log" doc="Set the stdout to [screen] or to [log] (stderr is always promped to screen)."/>
+
+  <!-- load controller configurations -->
+  <rosparam file="$(eval find(package_prefix + '_control') + '/config/' + namespace + '_controllers.yaml')" command="load"/>
+  <!-- spawn the controllers in current namespace -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner"
+        respawn="true" output="screen"
+        args="$(arg controllers)"/>
+  <!-- start the controller GUI -->
+  <node name="controller_gui" pkg="rqt_joint_trajectory_controller" type="rqt_joint_trajectory_controller"
+        respawn="true" output="$(arg output)"
+        if="$(arg use_controller_gui)"/>
+</launch>

@@ -1,0 +1,45 @@
+<launch>
+  <arg name="control_action" default="" doc="The name of the control action depends on the device."/>
+  <arg name="control_duration" default="0.01" doc="The duration of the control loop [s]."/>
+  <arg name="controllers" default="" doc="The controllers to be spawned (e.g. *_trajectory_controller)."/>
+  <arg name="controllers_namespace" default="qbdevice" doc="The namespace prefix (necessary with many devices)."/>
+  <arg name="controllers_settings" default="qb_device" doc="The package name prefix for the custom controllers."/>
+  <arg name="device_id" default="1" doc="The ID of the device [1, 128]."/>
+  <arg name="device_control" default="qb_device" doc="The package name prefix for the control."/>
+  <arg name="device_description" default="qb_device" doc="The package name prefix for the description."/>
+  <arg name="device_namespace" default="qbdevice" doc="The namespace prefix (necessary with many devices)."/>
+  <arg name="device_urdf" default="qbdevice" doc="The name of the URDF model to be loaded."/>
+  <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
+  <arg name="use_rviz" default="true" doc="Choose whether or not to use rviz."/>
+  <arg name="use_waypoints" default="false" doc="Choose whether or not to use the waypoint references."/>
+  <arg name="waypoint_namespace" default="qbdevice" doc="The namespace prefix for the custom waypoints."/>
+  <arg name="waypoint_settings" default="qbdevice" doc="The package name prefix for the custom settings."/>
+
+  <group ns="$(arg device_namespace)">
+    <!-- bring up the robot description (also start the state publishers and rviz if set) -->
+    <include file="$(find qb_device_bringup)/launch/description_bringup.launch">
+      <arg name="device_urdf" value="$(arg device_urdf)"/>
+      <arg name="device_namespace" value="$(arg device_namespace)"/>
+      <arg name="device_description" value="$(arg device_description)"/>
+      <arg name="use_rviz" value="$(arg use_rviz)"/>
+    </include>
+    <!-- bring up the controllers -->
+    <include file="$(find qb_device_bringup)/launch/controllers_bringup.launch">
+      <arg name="controllers" value="$(arg controllers)"/>
+      <arg name="controllers_namespace" value="$(arg controllers_namespace)"/>
+      <arg name="controllers_settings" value="$(arg controllers_settings)"/>
+      <arg name="use_controller_gui" value="$(arg use_controller_gui)"/>
+    </include>
+    <!-- bring up the control node -->
+    <include file="$(find qb_device_bringup)/launch/control_bringup.launch">
+      <arg name="control_action" value="$(arg control_action)"/>
+      <arg name="control_duration" value="$(arg control_duration)"/>
+      <arg name="device_id" value="$(arg device_id)"/>
+      <arg name="device_control" value="$(arg device_control)"/>
+      <arg name="device_namespace" value="$(arg device_namespace)"/>
+      <arg name="use_waypoints" value="$(arg use_waypoints)"/>
+      <arg name="waypoint_namespace" value="$(arg waypoint_namespace)"/>
+      <arg name="waypoint_settings" value="$(arg waypoint_settings)"/>
+    </include>
+  </group>
+</launch>

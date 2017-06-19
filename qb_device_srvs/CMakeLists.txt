@@ -1,25 +1,27 @@
 cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
-project(qb_device_msgs VERSION 1.0.0 LANGUAGES CXX)
+project(qb_device_srvs VERSION 1.0.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
   COMPONENTS
-    std_msgs
+    std_srvs
+    qb_device_msgs
     message_generation
 )
 
-add_message_files(
-  DIRECTORY msg
+add_service_files(
+  DIRECTORY srv
   FILES
-    Info.msg
-    ResourceData.msg
-    State.msg
-    StateStamped.msg
+    GetMeasurements.srv
+    RegisterDevice.srv
+    SetCommands.srv
+    Trigger.srv
 )
 
 generate_messages(
   DEPENDENCIES
-    std_msgs
+    std_srvs
+    qb_device_msgs
 )
 
 include_directories(include
@@ -30,6 +32,7 @@ catkin_package(
   INCLUDE_DIRS
     include
   CATKIN_DEPENDS
-    std_msgs
+    std_srvs
+    qb_device_msgs
     message_runtime
 )

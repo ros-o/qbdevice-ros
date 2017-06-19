@@ -1,0 +1,7 @@
+# request
+int32 id
+---
+# response
+bool success
+int16[] positions
+int16[] currents

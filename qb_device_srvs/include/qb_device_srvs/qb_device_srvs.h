@@ -25,13 +25,13 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef QB_DEVICE_MSGS_H
-#define QB_DEVICE_MSGS_H
+#ifndef QB_DEVICE_SRVS_H
+#define QB_DEVICE_SRVS_H
 
 // auto-generated msg headers
-#include <qb_device_msgs/Info.h>
-#include <qb_device_msgs/ResourceData.h>
-#include <qb_device_msgs/State.h>
-#include <qb_device_msgs/StateStamped.h>
+#include <qb_device_srvs/GetMeasurements.h>
+#include <qb_device_srvs/RegisterDevice.h>
+#include <qb_device_srvs/SetCommands.h>
+#include <qb_device_srvs/Trigger.h>
 
-#endif //QB_DEVICE_MSGS_H
+#endif //QB_DEVICE_SRVS_H

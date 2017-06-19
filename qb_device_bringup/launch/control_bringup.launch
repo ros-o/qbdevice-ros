@@ -1,0 +1,20 @@
+<launch>
+  <arg name="control_action" default="" doc="The name of the control action depends on the device."/>
+  <arg name="control_duration" default="0.01" doc="The duration of the control loop [s]."/>
+  <arg name="device_id" default="1" doc="The ID of the device [1, 128]."/>
+  <arg name="device_control" default="qb_device" doc="The package name prefix for the control."/>
+  <arg name="device_namespace" default="qbdevice" doc="The namespace prefix (necessary with many devices)."/>
+  <arg name="use_waypoints" default="false" doc="Choose whether or not to use the waypoint references."/>
+  <arg name="waypoint_namespace" default="qbdevice" doc="The namespace prefix for the custom waypoints."/>
+  <arg name="waypoint_settings" default="qbdevice" doc="The package name prefix for the custom settings."/>
+
+  <!-- start the control node -->
+  <node name="$(arg device_control)_control" pkg="$(arg device_control)_control" type="$(arg device_control)_control"
+        respawn="false" output="screen">
+    <param name="namespaced_action_type" type="string" value="$(arg device_namespace)_$(arg control_action)"/>
+    <param name="control_duration" type="double" value="$(arg control_duration)"/>
+    <param name="device_id" type="int" value="$(arg device_id)"/>
+    <param name="namespace" type="string" value="$(arg device_namespace)"/>
+    <rosparam file="$(eval find(waypoint_settings + '_control') + '/config/' + waypoint_namespace + '_waypoints.yaml')" command="load" if="$(arg use_waypoints)"/>
+  </node>
+</launch>

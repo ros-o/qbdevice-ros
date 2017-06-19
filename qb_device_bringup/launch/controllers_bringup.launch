@@ -1,0 +1,14 @@
+<launch>
+  <arg name="controllers" default="" doc="The controllers to be spawned (e.g. *_trajectory_controller)."/>
+  <arg name="controllers_namespace" default="qbdevice" doc="The namespace prefix (necessary with many devices)."/>
+  <arg name="controllers_settings" default="qb_device" doc="The package name prefix for the custom settings."/>
+  <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
+
+  <!-- spawn the controllers in current namespace -->
+  <include file="$(find qb_device_control)/launch/spawner_template.launch">
+    <arg name="controllers" value="$(arg controllers)"/>
+    <arg name="namespace" value="$(arg controllers_namespace)"/>
+    <arg name="package_prefix" value="$(arg controllers_settings)"/>
+    <arg name="use_controller_gui" value="$(arg use_controller_gui)"/>
+  </include>
+</launch>
