@@ -1,4 +1,0 @@
-[submodule "qb_device_driver/api"]
-	path = qb_device_driver/api
-	url = https://bitbucket.org/qbrobotics/qbdevice-api.git
-	branch = production
