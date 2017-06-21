@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
-project(qb_device_driver VERSION 1.0.2 LANGUAGES CXX)
+project(qb_device_driver VERSION 1.0.3 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -50,4 +50,19 @@ set_property(
   TARGET
     qb_device_communication_handler
   PROPERTY CXX_STANDARD_REQUIRED ON
+)
+
+# Installation
+install(
+  DIRECTORY
+    include/${PROJECT_NAME}/
+  DESTINATION
+    ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(
+  DIRECTORY
+    launch/
+  DESTINATION
+    ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )

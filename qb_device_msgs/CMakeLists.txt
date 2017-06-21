@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
-project(qb_device_msgs VERSION 1.0.2 LANGUAGES CXX)
+project(qb_device_msgs VERSION 1.0.3 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -32,4 +32,12 @@ catkin_package(
   CATKIN_DEPENDS
     std_msgs
     message_runtime
+)
+
+# Installation
+install(
+  DIRECTORY
+    include/${PROJECT_NAME}/
+  DESTINATION
+    ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )

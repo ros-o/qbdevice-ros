@@ -2,6 +2,10 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.0.3 (2017-06-21)
+------------------
+* fix cmake settings to solve isolated builds
+
 1.0.2 (2017-06-20)
 ------------------
 
