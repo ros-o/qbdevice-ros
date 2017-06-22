@@ -27,7 +27,7 @@
 
 // Google Testing Framework
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
+//#include <gmock/gmock.h>
 // qb robotics libraries
 #include <qb_device_hardware_interface/qb_device_hardware_interface.h>
 
@@ -60,8 +60,8 @@ TEST(Resources, Constructors) {
 
 
 int main(int argc, char **argv) {
-//  testing::InitGoogleTest(&argc, argv);
-  testing::InitGoogleMock(&argc, argv);
+  testing::InitGoogleTest(&argc, argv);
+//  testing::InitGoogleMock(&argc, argv);
 //  testing::FLAGS_gmock_verbose = "info";
   ros::init(argc, argv, "unit_tests");
   return RUN_ALL_TESTS();

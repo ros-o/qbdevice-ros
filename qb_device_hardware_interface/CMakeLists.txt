@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1 FATAL_ERROR)
-project(qb_device_hardware_interface VERSION 1.0.4 LANGUAGES CXX)
+project(qb_device_hardware_interface VERSION 1.0.5 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -74,19 +74,19 @@ install(
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
 
-  # explicit gmock build FIXME: outside sourcing
-  include_directories(/usr/include/gmock /usr/src/gmock)
-  find_library(GMOCK_LIBRARIES libgmock)
-  if(NOT GMOCK_LIBRARIES)
-    add_library(libgmock /usr/src/gmock/src/gmock-all.cc)
-  endif()
+#  # explicit gmock build FIXME: outside sourcing
+#  include_directories(/usr/include/gmock /usr/src/gmock)
+#  find_library(GMOCK_LIBRARIES libgmock)
+#  if(NOT GMOCK_LIBRARIES)
+#    add_library(libgmock /usr/src/gmock/src/gmock-all.cc)
+#  endif()
 
   catkin_add_gtest(${PROJECT_NAME}_unit_tests
     src/test/unit_tests.cpp
   )
 
   target_link_libraries(${PROJECT_NAME}_unit_tests
-    libgmock
+#    libgmock
     ${PROJECT_NAME}
     ${catkin_LIBRARIES}
   )
