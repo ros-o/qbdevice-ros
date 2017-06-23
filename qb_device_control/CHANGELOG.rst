@@ -2,6 +2,10 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.0.6 (2017-06-23)
+------------------
+* Update cmake version to match Kinetic standards
+
 1.0.5 (2017-06-22)
 ------------------
 
