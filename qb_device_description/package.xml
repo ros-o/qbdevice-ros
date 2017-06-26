@@ -1,6 +1,6 @@
 <package format="2">
   <name>qb_device_description</name>
-  <version>1.0.6</version>
+  <version>1.0.7</version>
   <description>
     This package contains a device-independent description utilities for qbrobotics® devices.
   </description>

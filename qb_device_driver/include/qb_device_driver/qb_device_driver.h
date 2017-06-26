@@ -28,6 +28,9 @@
 #ifndef QB_DEVICE_DRIVER_H
 #define QB_DEVICE_DRIVER_H
 
+// Standard libraries
+#include <array>
+
 // internal libraries
 #include <qbmove_communications.h>
 

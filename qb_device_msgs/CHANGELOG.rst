@@ -2,6 +2,9 @@
 Changelog for package qb_device_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.0.7 (2017-06-26)
+------------------
+
 1.0.6 (2017-06-23)
 ------------------
 * Update cmake version to match Kinetic standards
