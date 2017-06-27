@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_driver VERSION 1.0.7 LANGUAGES CXX)
+project(qb_device_driver VERSION 1.0.8 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -40,17 +40,24 @@ add_dependencies(qb_device_communication_handler
 )
 
 # C++ Settings
-set_property(
-  TARGET
-    qb_device_communication_handler
-  PROPERTY CXX_STANDARD 14
-)
+if (CMAKE_VERSION VERSION_LESS "3.1")
+  target_compile_options(qb_device_communication_handler
+    PUBLIC
+      "-std=c++14"
+  )
+else ()
+  set_property(
+    TARGET
+      qb_device_communication_handler
+    PROPERTY CXX_STANDARD 14
+  )
 
-set_property(
-  TARGET
-    qb_device_communication_handler
-  PROPERTY CXX_STANDARD_REQUIRED ON
-)
+  set_property(
+    TARGET
+      qb_device_communication_handler
+    PROPERTY CXX_STANDARD_REQUIRED ON
+  )
+endif ()
 
 # Installation
 install(

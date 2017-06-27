@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_hardware_interface VERSION 1.0.7 LANGUAGES CXX)
+project(qb_device_hardware_interface VERSION 1.0.8 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -43,17 +43,24 @@ add_dependencies(${PROJECT_NAME}
 )
 
 # C++ Settings
-set_property(
-  TARGET
-    ${PROJECT_NAME}
-  PROPERTY CXX_STANDARD 14
-)
+if (CMAKE_VERSION VERSION_LESS "3.1")
+  target_compile_options(${PROJECT_NAME}
+    PUBLIC
+      "-std=c++14"
+  )
+else ()
+  set_property(
+    TARGET
+      ${PROJECT_NAME}
+    PROPERTY CXX_STANDARD 14
+  )
 
-set_property(
-  TARGET
-    ${PROJECT_NAME}
-  PROPERTY CXX_STANDARD_REQUIRED ON
-)
+  set_property(
+    TARGET
+      ${PROJECT_NAME}
+    PROPERTY CXX_STANDARD_REQUIRED ON
+  )
+endif ()
 
 # Installation
 install(
@@ -91,15 +98,22 @@ if(CATKIN_ENABLE_TESTING)
     ${catkin_LIBRARIES}
   )
 
-  set_property(
-    TARGET
-      ${PROJECT_NAME}_unit_tests
-    PROPERTY CXX_STANDARD 14
-  )
+  if (CMAKE_VERSION VERSION_LESS "3.1")
+    target_compile_options(${PROJECT_NAME}_unit_tests
+      PUBLIC
+        "-std=c++14"
+    )
+  else ()
+    set_property(
+      TARGET
+        ${PROJECT_NAME}_unit_tests
+      PROPERTY CXX_STANDARD 14
+    )
 
-  set_property(
-    TARGET
-      ${PROJECT_NAME}_unit_tests
-    PROPERTY CXX_STANDARD_REQUIRED ON
-  )
+    set_property(
+      TARGET
+        ${PROJECT_NAME}_unit_tests
+      PROPERTY CXX_STANDARD_REQUIRED ON
+    )
+  endif ()
 endif()
