@@ -1,6 +1,6 @@
 <package format="2">
   <name>qb_device</name>
-  <version>1.0.8</version>
+  <version>1.1.0</version>
   <description>
     This package contains a device-independent ROS interface for qbrobotics® devices.
   </description>

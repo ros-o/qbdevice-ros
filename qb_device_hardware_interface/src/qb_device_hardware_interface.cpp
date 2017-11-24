@@ -43,7 +43,7 @@ qbDeviceHW::qbDeviceHW(qb_device_transmission_interface::TransmissionPtr transmi
     device_(ros::param::param<int>("~device_id", 1)),
     namespace_(ros::param::param<std::string>("~namespace", "qbdevice_" + std::to_string(device_.id))) {
   spinner_.start();
-
+  //TODO: investigate namespace (ros::this_node::getNamespace() returns "//namespace" instead of "/namespace")
   initializeResources(actuators, joints);
   initializeInterfaces(transmission);
 

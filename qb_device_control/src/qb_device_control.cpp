@@ -45,14 +45,13 @@ qbDeviceControl::qbDeviceControl(qb_device_hardware_interface::qbDeviceHWPtr dev
   waitForActionServer();
   waitForOtherNodes();
 
-  control_timer_ = node_handle_.createWallTimer(control_duration_, &qbDeviceControl::controlCallback, this);
-  ros::Duration(1.0).sleep();  // just to be sure that everything has been startup correctly
-
   if (ros::param::has("~waypoints")) {
     ROS_INFO_STREAM_NAMED("device_control", "Device [" << device_->getDeviceId() << "] has waypoints loaded in the parameter server (loop among them).");
     parseWaypoints("~waypoints", waypoint_trajectory_map_);
-    move(waypoint_trajectory_map_);
+    waypoint_joint_trajectory_ = getTrajectory(waypoint_trajectory_map_);
   }
+
+  control_setup_timer_ = node_handle_.createWallTimer(control_duration_, &qbDeviceControl::controlSetupCallback, this, true);  // oneshot
 }
 
 qbDeviceControl::~qbDeviceControl() {
@@ -74,8 +73,8 @@ void qbDeviceControl::actionDoneCallback(const actionlib::SimpleClientGoalState 
   }
 
   // automatically loop the waypoint trajectory
-  if (ros::param::has("~waypoints")) {
-    move(waypoint_trajectory_map_);
+  if (waypoint_joint_trajectory_.points.size()) {
+    move(waypoint_joint_trajectory_);
   }
 }
 
@@ -87,18 +86,26 @@ void qbDeviceControl::controlCallback(const ros::WallTimerEvent &timer_event) {
   update(timer_event.current_real, timer_event.current_real - timer_event.last_real);
 }
 
+void qbDeviceControl::controlSetupCallback(const ros::WallTimerEvent &timer_event) {
+  control_setup_timer_.stop();
+
+  ros::Duration(1.0).sleep();  // just to be sure that everything has been startup correctly
+  control_timer_ = node_handle_.createWallTimer(control_duration_, &qbDeviceControl::controlCallback, this);
+
+  // automatically start the waypoint trajectory if it is not empty
+  if (waypoint_joint_trajectory_.points.size()) {
+    move(waypoint_joint_trajectory_);
+  }
+}
+
 void qbDeviceControl::move(const trajectory_msgs::JointTrajectory &joint_trajectory) {
   control_msgs::FollowJointTrajectoryAction control_action;
   control_action.action_goal.goal.trajectory = joint_trajectory;
-  control_action.action_goal.header.stamp = ros::Time::now();
+  control_action.action_goal.header.stamp = ros::Time(0);
   action_client_.sendGoal(control_action.action_goal.goal,
                           std::bind(&qbDeviceControl::actionDoneCallback, this, std::placeholders::_1, std::placeholders::_2),
                           std::bind(&qbDeviceControl::actionActiveCallback, this),
                           std::bind(&qbDeviceControl::actionFeedbackCallback, this, std::placeholders::_1));
-}
-
-void qbDeviceControl::move(const std::map<double, std::vector<double>> &waypoints_map) {
-  move(setTrajectory(waypoints_map));
 }
 
 void qbDeviceControl::parseWaypoints(const std::string &waypoint_map_name, std::map<double, std::vector<double>> &waypoint_map) {
@@ -126,7 +133,7 @@ void qbDeviceControl::parseWaypoints(const std::string &waypoint_map_name, std::
   }
 }
 
-trajectory_msgs::JointTrajectory qbDeviceControl::setTrajectory(const std::map<double, std::vector<double>> &waypoints_map) {
+trajectory_msgs::JointTrajectory qbDeviceControl::getTrajectory(const std::map<double, std::vector<double>> &waypoints_map) {
   //TODO: modify 'waypoints_map' to handle velocities and accelerations
   trajectory_msgs::JointTrajectory joint_trajectory;
   joint_trajectory.joint_names = device_->getJoints();
@@ -147,10 +154,35 @@ trajectory_msgs::JointTrajectory qbDeviceControl::setTrajectory(const std::map<d
     joint_trajectory.points.push_back(point);
   }
 
-  joint_trajectory.header.stamp = ros::Time::now();
+  joint_trajectory.header.stamp = ros::Time(0);
   return joint_trajectory;
 }
 
+trajectory_msgs::JointTrajectory qbDeviceControl::getSinusoidalTrajectory(const double &amplitude, const double &period, const int &samples_per_period, const int &periods) {
+  trajectory_msgs::JointTrajectory joint_trajectory;
+  joint_trajectory.joint_names = device_->getJoints();
+  double delta_period = period/samples_per_period;
+  double omega = 2*M_PI/period;  // angular frequency of the wave
+
+  for (int i=0; i<samples_per_period*periods; i++) {
+    trajectory_msgs::JointTrajectoryPoint point;
+    double point_time = (i+1)*delta_period;
+
+    for (int j=0; j<joint_trajectory.joint_names.size(); j++) {
+      point.positions.push_back(amplitude * std::sin(omega*point_time));  // A sin(wt)
+      point.velocities.push_back(amplitude*omega * std::cos(omega*point_time));  // Aw cos(wt)
+      point.accelerations.push_back(-amplitude*std::pow(omega,2) * std::sin(omega*point_time));  // -Aw^2 sin(wt)
+    }
+
+    point.time_from_start = ros::Duration(point_time);
+    joint_trajectory.points.push_back(point);
+  }
+
+  joint_trajectory.header.stamp = ros::Time(0);
+  return joint_trajectory;
+}
+
+//TODO: choose if could be useful to make this virtual for derived classes or at least a virtual method inside this to check for measurements
 void qbDeviceControl::update(const ros::WallTime& time, const ros::WallDuration& period) {
   // read the state from the hardware
   device_->read(ros::Time(time.toSec()), ros::Duration(period.toSec()));

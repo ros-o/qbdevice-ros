@@ -2,6 +2,12 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.1.0 (2017-11-24)
+------------------
+* Add notes for the future
+* Refactor control timer intialization
+* Add sine wave trajectory generator
+
 1.0.8 (2017-06-27)
 ------------------
 * Fix C++11 support for cmake version less than 3.1

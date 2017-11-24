@@ -80,14 +80,6 @@ class qbDeviceControl {
   void move(const trajectory_msgs::JointTrajectory &joint_trajectory);
 
   /**
-   * A simple overload of the \p move(const trajectory_msgs::JointTrajectory &) to use directly the waypoint trajectory
-   * map.
-   * \param waypoints_map The waypoint trajectory map containing pairs of [\p time, \p joint_positions].
-   * \sa move(const trajectory_msgs::JointTrajectory &), parseWaypoints(), setTrajectory()
-   */
-  void move(const std::map<double, std::vector<double>> &waypoints_map);
-
-  /**
    * Retrieve the control waypoints from the Parameter Server. If not specified under the private \p "~waypoints" ROS
    * param, do nothing.
    * \param waypoint_map_name The name of the ROS parameter which contains the list (i.e. not mapping) of waypoints.
@@ -107,7 +99,18 @@ class qbDeviceControl {
    * \sa move(const trajectory_msgs::JointTrajectory &)
    * \todo Add support for \p joint_velocities and \p joint_accelerations as additional specification for waypoints.
    */
-  trajectory_msgs::JointTrajectory setTrajectory(const std::map<double, std::vector<double>> &waypoints_map);
+  trajectory_msgs::JointTrajectory getTrajectory(const std::map<double, std::vector<double>> &waypoints_map);
+
+  /**
+   * Fill a \p trajectory_msgs::JointTrajectory ROS message with a sine wave constructed from the given parameters.
+   * \param amplitude The amplitude of the sine wave position trajectory for the motor [rad].
+   * \param period The period of the sine wave position trajectory for the motor [s].
+   * \param samples_per_period The number of samples in a whole period.
+   * \param periods The number of periods concatenated in the trajectory.
+   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
+   * \sa move(const trajectory_msgs::JointTrajectory &)
+   */
+  trajectory_msgs::JointTrajectory getSinusoidalTrajectory(const double &amplitude, const double &period, const int &samples_per_period, const int &periods);
 
   /**
    * Wait until the action is completed or the given timeout is reached.
@@ -120,12 +123,14 @@ class qbDeviceControl {
   ros::AsyncSpinner spinner_;
   ros::NodeHandle node_handle_;
   ros::ServiceClient sync_nodes_;
+  ros::WallTimer control_setup_timer_;
   ros::WallTimer control_timer_;
   ros::WallDuration control_duration_;
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> action_client_;
   controller_manager::ControllerManager controller_manager_;
   qb_device_hardware_interface::qbDeviceHWPtr device_;
   std::map<double, std::vector<double>> waypoint_trajectory_map_;
+  trajectory_msgs::JointTrajectory waypoint_joint_trajectory_;
 
  private:
   /**
@@ -155,6 +160,13 @@ class qbDeviceControl {
    * \sa update()
    */
   void controlCallback(const ros::WallTimerEvent &timer_event);
+
+  /**
+   * Initialize the control timer and automatically start the waypoint trajectory if it is not empty.
+   * \param timer_event The timer event struct which stores timing info.
+   * \sa controlCallback()
+   */
+  void controlSetupCallback(const ros::WallTimerEvent &timer_event);
 
   /**
    * Read the current state from the HW, update all active controllers, and send the new references to the HW. The

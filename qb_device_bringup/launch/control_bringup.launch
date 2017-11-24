@@ -9,7 +9,7 @@
   <arg name="waypoint_settings" default="qbdevice" doc="The package name prefix for the custom settings."/>
 
   <!-- start the control node -->
-  <node name="$(arg device_control)_control" pkg="$(arg device_control)_control" type="$(arg device_control)_control"
+  <node name="$(arg device_control)_control" pkg="$(arg device_control)_control" type="$(arg device_control)_default"
         respawn="false" output="screen">
     <param name="namespaced_action_type" type="string" value="$(arg device_namespace)_$(arg control_action)"/>
     <param name="control_duration" type="double" value="$(arg control_duration)"/>

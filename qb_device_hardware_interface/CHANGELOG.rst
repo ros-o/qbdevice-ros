@@ -2,6 +2,10 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.1.0 (2017-11-24)
+------------------
+* Add notes for the future
+
 1.0.8 (2017-06-27)
 ------------------
 * Fix C++11 support for cmake version less than 3.1
