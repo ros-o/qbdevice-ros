@@ -157,10 +157,15 @@ int qbDeviceCommunicationHandler::getMeasurements(const int &id, std::vector<sho
 
   //FIXME: cannot use the 'commGetCurrAndMeas' API function because the command 'CMD_GET_CURR_AND_MEAS' is not
   //FIXME  implemented in the qbhand firmware... (it has been put only inside the qbmove firmware)
-  if (device_api_->getPositions(&file_descriptors_.at(connected_devices_.at(id)), id, positions) < 0) {
+  // the API methods are called at most (i.e. very unlikely) three times to guarantee the correct identification of a real fault in the communication
+  if (device_api_->getPositions(&file_descriptors_.at(connected_devices_.at(id)), id, positions) < 0 &&
+      device_api_->getPositions(&file_descriptors_.at(connected_devices_.at(id)), id, positions) < 0 &&
+      device_api_->getPositions(&file_descriptors_.at(connected_devices_.at(id)), id, positions) < 0) {
     return -1;
   }
-  if (device_api_->getCurrents(&file_descriptors_.at(connected_devices_.at(id)), id, currents) < 0) {
+  if (device_api_->getCurrents(&file_descriptors_.at(connected_devices_.at(id)), id, currents) < 0 &&
+      device_api_->getCurrents(&file_descriptors_.at(connected_devices_.at(id)), id, currents) < 0 &&
+      device_api_->getCurrents(&file_descriptors_.at(connected_devices_.at(id)), id, currents) < 0) {
     return -1;
   }
   return 0;
@@ -221,7 +226,10 @@ bool qbDeviceCommunicationHandler::isActive(const int &id) {
     ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] device [" << id << "] is not registered or even connected.");
     return false;
   }
-  if (device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id, status)) {
+  // the API method is called at most (i.e. very unlikely) three times to guarantee the correct identification of a real fault in the communication
+  if (device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id, status) &&
+      device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id, status) &&
+      device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id, status)) {
     ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] device [" << id << "] is not even connected.");
     return false;
   }

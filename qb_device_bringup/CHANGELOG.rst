@@ -2,6 +2,10 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.2.2 (2017-11-30)
+------------------
+* Fix launch file
+
 1.1.0 (2017-11-24)
 ------------------
 * Fix control nodes type

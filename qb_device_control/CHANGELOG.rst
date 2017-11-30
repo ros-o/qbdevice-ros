@@ -2,6 +2,10 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.2.2 (2017-11-30)
+------------------
+* Add a step (square) wave trajectory generator
+
 1.1.0 (2017-11-24)
 ------------------
 * Add notes for the future

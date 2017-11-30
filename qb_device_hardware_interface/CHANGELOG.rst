@@ -2,6 +2,11 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.2.2 (2017-11-30)
+------------------
+* Fix possible fault on registration
+* Refactor service clients management
+
 1.1.0 (2017-11-24)
 ------------------
 * Add notes for the future

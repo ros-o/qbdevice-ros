@@ -117,14 +117,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   ros::AsyncSpinner spinner_;
   ros::NodeHandle node_handle_;
   ros::Publisher state_publisher_;
-  //TODO: pack all the service in a std::map services_(name, client)
-  ros::ServiceClient activate_motors_;
-  ros::ServiceClient deactivate_motors_;
-  ros::ServiceClient deregister_device_;
-  ros::ServiceClient get_info_;
-  ros::ServiceClient get_measurements_;
-  ros::ServiceClient register_device_;
-  ros::ServiceClient set_commands_;
+  std::map<std::string, ros::ServiceClient> services_;
   qb_device_hardware_interface::qbDeviceResources device_;
   qb_device_hardware_interface::qbDeviceHWResources actuators_;
   qb_device_hardware_interface::qbDeviceHWResources joints_;
@@ -193,6 +186,11 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   void initializeResources(const std::vector<std::string> &actuators, const std::vector<std::string> &joints);
 
   /**
+   * Subscribe to all the services advertised by the Communication Handler.
+   */
+  void initializeServices();
+
+  /**
    * Call the service to register the device node to the Communication Handler and wait for the response. If the
    * registration succeed, store the device parameters received, e.g. \p position_limits.
    * \param activate_on_registration If \p true ask for motors activation during the registration process.
@@ -234,7 +232,9 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   void waitForRegistration();
 
   /**
-   * Wait until all the services advertised by the Communication Handler are active.
+   * Wait until all the services advertised by the Communication Handler are active, then reinitialize and register the device to avoid
+   * disconnection problems.
+   * \sa initializeServices(), waitForRegistration()
    */
   void waitForServices();
 };

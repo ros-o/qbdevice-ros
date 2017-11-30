@@ -182,6 +182,30 @@ trajectory_msgs::JointTrajectory qbDeviceControl::getSinusoidalTrajectory(const 
   return joint_trajectory;
 }
 
+trajectory_msgs::JointTrajectory qbDeviceControl::getStepTrajectory(const double &amplitude, const double &period, const int &periods) {
+  trajectory_msgs::JointTrajectory joint_trajectory;
+  std::map<double, std::vector<double>> one_period_map;
+  std::vector<double> high_positions(device_->getJoints().size(), amplitude);
+  std::vector<double> low_positions(device_->getJoints().size(), -amplitude);
+  
+  one_period_map.insert(std::make_pair(period*0.125, high_positions));
+  one_period_map.insert(std::make_pair(period*0.5, high_positions));
+  one_period_map.insert(std::make_pair(period*0.625, low_positions));
+  one_period_map.insert(std::make_pair(period*1, low_positions));
+
+  trajectory_msgs::JointTrajectory one_period_trajectory = getTrajectory(one_period_map);
+  for (int i=0; i<periods; i++) {
+    for (auto const &point : one_period_trajectory.points) {
+      joint_trajectory.points.push_back(point);
+      joint_trajectory.points.back().time_from_start += ros::Duration(i*period);
+    }
+  }
+
+  joint_trajectory.joint_names = device_->getJoints();
+  joint_trajectory.header.stamp = ros::Time(0);
+  return joint_trajectory;
+}
+
 //TODO: choose if could be useful to make this virtual for derived classes or at least a virtual method inside this to check for measurements
 void qbDeviceControl::update(const ros::WallTime& time, const ros::WallDuration& period) {
   // read the state from the hardware

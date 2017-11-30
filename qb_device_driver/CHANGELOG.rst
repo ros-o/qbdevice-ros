@@ -2,6 +2,10 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.2.2 (2017-11-30)
+------------------
+* Reduce communication errors
+
 1.1.0 (2017-11-24)
 ------------------
 

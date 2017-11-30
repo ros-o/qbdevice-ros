@@ -113,6 +113,16 @@ class qbDeviceControl {
   trajectory_msgs::JointTrajectory getSinusoidalTrajectory(const double &amplitude, const double &period, const int &samples_per_period, const int &periods);
 
   /**
+   * Fill a \p trajectory_msgs::JointTrajectory ROS message with a step (square) wave constructed from the given parameters.
+   * \param amplitude The amplitude of the step wave position trajectory for the motor [rad]. Note that the wave is symmetrical [-A, A].
+   * \param period The period of the step wave position trajectory for the motor [s].
+   * \param periods The number of periods concatenated in the trajectory.
+   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
+   * \sa move(const trajectory_msgs::JointTrajectory &)
+   */
+  trajectory_msgs::JointTrajectory getStepTrajectory(const double &amplitude, const double &period, const int &periods);
+
+  /**
    * Wait until the action is completed or the given timeout is reached.
    * \param timeout The maximum amount of time to wait.
    * \return \p true if action has ended.
