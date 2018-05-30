@@ -31,23 +31,15 @@ using namespace qb_device_hardware_interface;
 
 qbDeviceHW::qbDeviceHW(qb_device_transmission_interface::TransmissionPtr transmission, const std::vector<std::string> &actuators, const std::vector<std::string> &joints)
   : spinner_(1),
-    node_handle_(ros::NodeHandle()),
-    state_publisher_(node_handle_.advertise<qb_device_msgs::StateStamped>("state", 1)),
-    device_(ros::param::param<int>("~device_id", 1)),
-    namespace_(ros::param::param<std::string>("~namespace", "qbdevice_" + std::to_string(device_.id))) {
+    transmission_(transmission),
+    actuators_(actuators),
+    joints_(joints) {
   spinner_.start();
-  //TODO: investigate namespace (ros::this_node::getNamespace() returns "//namespace" instead of "/namespace")
-  initializeResources(actuators, joints);
-  initializeInterfaces(transmission);
-  initializeServices();
-
-  waitForServices();
-  ROS_INFO_STREAM(getInfo());
-  //TODO: add a check on the device control mode (warn if it is not 'position')
+  initializeServicesAndWait();
 }
 
 qbDeviceHW::~qbDeviceHW() {
-  deregisterDevice();
+  deactivateMotors();
   spinner_.stop();
 }
 
@@ -55,6 +47,7 @@ int qbDeviceHW::activateMotors() {
   if (services_.at("activate_motors")) {
     qb_device_srvs::Trigger srv;
     srv.request.id = device_.id;
+    srv.request.max_repeats = device_.max_repeats;
     services_.at("activate_motors").call(srv);
     if (!srv.response.success) {
       ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot activate device [" << device_.id << "].");
@@ -64,14 +57,17 @@ int qbDeviceHW::activateMotors() {
     return 0;
   }
   ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [activate_motors] seems no longer advertised. Trying to reconnect...");
-  waitForServices();
+  resetServicesAndWait();
   return -1;
 }
 
 std::vector<std::string> qbDeviceHW::addNamespacePrefix(const std::vector<std::string> &vector) {
-  std::vector<std::string> namespaced_vector;
-  for (auto &elem : vector) {
-    namespaced_vector.push_back(namespace_ + "_" + elem);
+  std::vector<std::string> namespaced_vector(vector);
+  std::string prefix = device_.name + "_";
+  for (auto &elem : namespaced_vector) {
+    if (!std::regex_match(elem, std::regex("^" + prefix + ".*"))) {
+      elem = prefix + elem;
+    }
   }
   return namespaced_vector;
 }
@@ -80,6 +76,7 @@ int qbDeviceHW::deactivateMotors() {
   if (services_.at("deactivate_motors")) {
     qb_device_srvs::Trigger srv;
     srv.request.id = device_.id;
+    srv.request.max_repeats = device_.max_repeats;
     services_.at("deactivate_motors").call(srv);
     if (!srv.response.success) {
       ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot deactivate device [" << device_.id << "].");
@@ -89,23 +86,7 @@ int qbDeviceHW::deactivateMotors() {
     return 0;
   }
   ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [deactivate_motors] seems no longer advertised. Trying to reconnect...");
-  waitForServices();
-  return -1;
-}
-
-int qbDeviceHW::deregisterDevice() {
-  if (services_.at("deregister_device")) {
-    qb_device_srvs::Trigger srv;
-    srv.request.id = device_.id;
-    services_.at("deregister_device").call(srv);
-    if (!srv.response.success) {
-      ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot deregister device [" << device_.id << "] from [CommunicationHandler].");
-      return -1;
-    }
-    ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] device [" << device_.id << "] is no longer registered in [CommunicationHandler].");
-    return 0;
-  }
-  ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [deregister_device] seems no longer advertised.");
+  resetServicesAndWait();
   return -1;
 }
 
@@ -113,6 +94,7 @@ std::string qbDeviceHW::getInfo() {
   if (services_.at("get_info")) {
     qb_device_srvs::Trigger srv;
     srv.request.id = device_.id;
+    srv.request.max_repeats = device_.max_repeats;
     services_.at("get_info").call(srv);
     if (!srv.response.success) {
       ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot get info from device [" << device_.id << "].");
@@ -121,18 +103,22 @@ std::string qbDeviceHW::getInfo() {
     return srv.response.message;
   }
   ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [get_info] seems no longer advertised. Trying to reconnect...");
-  waitForServices();
+  resetServicesAndWait();
   return "";
 }
 
-int qbDeviceHW::getMeasurements(std::vector<double> &positions, std::vector<double> &currents) {
+int qbDeviceHW::getMeasurements(std::vector<double> &positions, std::vector<double> &currents, ros::Time &stamp) {
   if (services_.at("get_measurements")) {
     qb_device_srvs::GetMeasurements srv;
     srv.request.id = device_.id;
+    srv.request.max_repeats = device_.max_repeats;
+    srv.request.get_currents = device_.get_currents;
+    srv.request.get_positions = device_.get_positions;
+    srv.request.get_distinct_packages = device_.get_distinct_packages;
     services_.at("get_measurements").call(srv);
     if (!srv.response.success) {
       ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot get measurements from device [" << device_.id << "].");
-      return -1;
+      return srv.response.failures;  // positions and currents are not updated
     }
 
     // positions and currents cannot be resized because actuators state handle in the caller stores their addresses
@@ -142,45 +128,104 @@ int qbDeviceHW::getMeasurements(std::vector<double> &positions, std::vector<doub
     for (int i=0; i<currents.size() && i<srv.response.currents.size(); i++) {
       currents.at(i) = srv.response.currents.at(i);
     }
-    return 0;
+    stamp = srv.response.stamp;
+    return srv.response.failures;
   }
   ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [get_measurements] seems no longer advertised. Trying to reconnect...");
-  waitForServices();
+  resetServicesAndWait();
   return -1;
 }
 
-void qbDeviceHW::initializeInterfaces(qb_device_transmission_interface::TransmissionPtr transmission) {
+bool qbDeviceHW::init(ros::NodeHandle& root_nh, ros::NodeHandle &robot_hw_nh) {
+  node_handle_ = robot_hw_nh;
+  if (!robot_hw_nh.getParam("device_name", device_.name)) {
+    ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot retrieve 'device_name' from the Parameter Service [" << robot_hw_nh.getNamespace() << "].");
+    return false;
+  }
+  if (!robot_hw_nh.getParam("device_id", device_.id)) {
+    ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot retrieve 'device_id' from the Parameter Service [" << robot_hw_nh.getNamespace() << "].");
+    return false;
+  }
+  if (!urdf_model_.initParamWithNodeHandle("robot_description", root_nh)) {
+    ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot retrieve 'robot_description' from the Parameter Service [" << robot_hw_nh.getNamespace() << "].");
+    return false;
+  }
+
+  state_publisher_ = robot_hw_nh.advertise<qb_device_msgs::StateStamped>("state", 1);
+
+  actuators_.setJoints(robot_hw_nh.param<std::vector<std::string>>("actuators", addNamespacePrefix(actuators_.names)));
+  joints_.setJoints(robot_hw_nh.param<std::vector<std::string>>("joints", addNamespacePrefix(joints_.names)));
+
   interfaces_.initialize(this, joints_);
   joint_limits_.initialize(joints_, urdf_model_, interfaces_.joint_position);
-  transmission_.initialize(ros::param::param<std::string>("~transmission", "transmission"), transmission, actuators_, joints_);
+  transmission_.initialize(robot_hw_nh.param<std::string>("transmission", "transmission"), actuators_, joints_);
+
+  waitForInitialization();
+  ROS_INFO_STREAM(getInfo());
+
+  return true;
 }
 
-void qbDeviceHW::initializeResources(const std::vector<std::string> &actuators, const std::vector<std::string> &joints) {
-  actuators_.setJoints(ros::param::param<std::vector<std::string>>("~actuators", addNamespacePrefix(actuators)));
-  joints_.setJoints(ros::param::param<std::vector<std::string>>("~joints", addNamespacePrefix(joints)));
+int qbDeviceHW::initializeDevice() {
+  if (services_.at("initialize_device")) {
+    qb_device_srvs::InitializeDevice srv;
+    srv.request.id = device_.id;
+    srv.request.activate = node_handle_.param<bool>("activate_on_initialization", true);
+    srv.request.rescan = node_handle_.param<bool>("rescan_on_initialization", false);
+    int max_repeats = node_handle_.param<int>("max_repeats", 3);
+    srv.request.max_repeats = max_repeats;
+    services_.at("initialize_device").call(srv);
+    if (!srv.response.success) {
+      ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot initialize device [" << device_.id << "].");
+      return -1;
+    }
+    device_.max_repeats = max_repeats;
+    device_.get_currents = node_handle_.param<bool>("get_currents", true);
+    device_.get_positions = node_handle_.param<bool>("get_positions", true);
+    device_.get_distinct_packages = node_handle_.param<bool>("get_distinct_packages", false);
+    device_.set_commands = node_handle_.param<bool>("set_commands", true);
+    device_.set_commands_async = node_handle_.param<bool>("set_commands_async", false);
+    device_.serial_port = srv.response.info.serial_port;
+    device_.position_limits = srv.response.info.position_limits;
+    device_.encoder_resolutions = srv.response.info.encoder_resolutions;
 
-  if (!urdf_model_.initParam(ros::param::param<std::string>("~robot_description", "robot_description"))) {
-    ROS_ERROR_STREAM("Device [" << device_.id << "] fails while retrieving the urdf model from the parameter server.");
+    device_info_.id = device_.id;
+    device_info_.serial_port = device_.serial_port;
+    device_info_.max_repeats = device_.max_repeats;
+    device_info_.get_currents = device_.get_currents;
+    device_info_.get_positions = device_.get_positions;
+    device_info_.get_distinct_packages = device_.get_distinct_packages;
+    device_info_.set_commands = device_.set_commands;
+    device_info_.set_commands_async = device_.set_commands_async;
+    device_info_.position_limits = device_.position_limits;
+    device_info_.encoder_resolutions = device_.encoder_resolutions;
+
+    ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] device [" << device_.id << "] is initialized.");
+    return 0;
   }
+  ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [initialize_device] is no longer advertised.");
+  resetServicesAndWait(false);
+  return -1;
 }
 
-void qbDeviceHW::initializeServices() {
+void qbDeviceHW::initializeServicesAndWait() {
   services_["activate_motors"] = node_handle_.serviceClient<qb_device_srvs::Trigger>("/communication_handler/activate_motors", true);
   services_["deactivate_motors"] = node_handle_.serviceClient<qb_device_srvs::Trigger>("/communication_handler/deactivate_motors", true);
-  services_["deregister_device"] = node_handle_.serviceClient<qb_device_srvs::Trigger>("/communication_handler/deregister_device", true);
   services_["get_info"] = node_handle_.serviceClient<qb_device_srvs::Trigger>("/communication_handler/get_info", true);
   services_["get_measurements"] = node_handle_.serviceClient<qb_device_srvs::GetMeasurements>("/communication_handler/get_measurements", true);
-  services_["register_device"] = node_handle_.serviceClient<qb_device_srvs::RegisterDevice>("/communication_handler/register_device", true);
+  services_["initialize_device"] = node_handle_.serviceClient<qb_device_srvs::InitializeDevice>("/communication_handler/initialize_device", true);
   services_["set_commands"] = node_handle_.serviceClient<qb_device_srvs::SetCommands>("/communication_handler/set_commands", true);
+  waitForServices();
 }
 
 void qbDeviceHW::publish() {
   qb_device_msgs::StateStamped msg;
 
-  msg.device_info.id = device_.id;
-  msg.device_info.serial_port = device_.serial_port;
-  msg.device_info.position_limits = device_.position_limits;
-  msg.device_info.encoder_resolutions = device_.encoder_resolutions;
+  msg.device_info = device_info_;
+  msg.device_data.is_reliable = actuators_.is_reliable;
+  msg.device_data.consecutive_failures = actuators_.consecutive_failures;
+  msg.header.stamp = actuators_.stamp;
+  msg.header.frame_id = device_.name;
 
   for (int i=0; i<actuators_.names.size(); i++) {
     qb_device_msgs::ResourceData msg_actuator_data;
@@ -189,7 +234,7 @@ void qbDeviceHW::publish() {
     msg_actuator_data.velocity = actuators_.velocities.at(i);
     msg_actuator_data.effort = actuators_.efforts.at(i);
     msg_actuator_data.command = actuators_.commands.at(i);
-    msg.state.actuators.push_back(msg_actuator_data);
+    msg.device_data.actuators.push_back(msg_actuator_data);
   }
 
   for (int i=0; i<joints_.names.size(); i++) {
@@ -199,11 +244,8 @@ void qbDeviceHW::publish() {
     msg_joint_data.velocity = joints_.velocities.at(i);
     msg_joint_data.effort = joints_.efforts.at(i);
     msg_joint_data.command = joints_.commands.at(i);
-    msg.state.joints.push_back(msg_joint_data);
+    msg.device_data.joints.push_back(msg_joint_data);
   }
-
-  msg.header.frame_id = namespace_;
-  msg.header.stamp = ros::Time::now();
 
   state_publisher_.publish(msg);
 }
@@ -212,10 +254,12 @@ void qbDeviceHW::read(const ros::Time& time, const ros::Duration& period) {
   // store old actuator positions
   std::vector<double> actuator_position_old(actuators_.positions);
   // read actuator state from the hardware
-  getMeasurements(actuators_.positions, actuators_.efforts);
-  // update velocities which are computed by differentiation, e.g. (pos_new - pos_old)/delta_t
-  for (int i=0; i<actuators_.names.size(); i++) {
-    actuators_.velocities.at(i) = (actuators_.positions.at(i) - actuator_position_old.at(i)) / period.toSec();
+  actuators_.setReliability(device_.max_repeats, getMeasurements(actuators_.positions, actuators_.efforts, actuators_.stamp));
+  if (actuators_.is_reliable) {
+    // update velocities which are computed by differentiation, e.g. (pos_new - pos_old)/delta_t
+    for (int i = 0; i < actuators_.names.size(); i++) {
+      actuators_.velocities.at(i) = (actuators_.positions.at(i) - actuator_position_old.at(i)) / period.toSec();
+    }
   }
 
   // no needs to enforce joint limits: they come from the real device
@@ -227,32 +271,24 @@ void qbDeviceHW::read(const ros::Time& time, const ros::Duration& period) {
   publish();
 }
 
-int qbDeviceHW::registerDevice(const bool &activate_on_registration) {
-  if (services_.at("register_device")) {
-    qb_device_srvs::RegisterDevice srv;
-    srv.request.id = device_.id;
-    srv.request.activate = activate_on_registration;
-    services_.at("register_device").call(srv);
-    if (!srv.response.success) {
-      ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot register device [" << device_.id << "] to [CommunicationHandler].");
-      return -1;
-    }
-    device_.serial_port = srv.response.info.serial_port;
-    device_.position_limits = srv.response.info.position_limits;
-    device_.encoder_resolutions = srv.response.info.encoder_resolutions;
-    ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] device [" << device_.id << "] is registered in [CommunicationHandler].");
-    return 0;
+void qbDeviceHW::resetServicesAndWait(const bool &reinitialize_device) {
+  waitForServices();
+  // reset all the service clients in case they were not yet advertised during initialization
+  initializeServicesAndWait();
+  if (reinitialize_device) {
+    waitForInitialization();
   }
-  ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [register_device] is no longer advertised.");
-  return -1;
 }
 
 int qbDeviceHW::setCommands(const std::vector<double> &commands) {
   if (services_.at("set_commands")) {
     qb_device_srvs::SetCommands srv;
     srv.request.id = device_.id;
+    srv.request.max_repeats = device_.max_repeats;
+    srv.request.set_commands = device_.set_commands;
+    srv.request.set_commands_async = device_.set_commands_async;
 
-    for (auto command : commands) {
+    for (auto const &command : commands) {
       srv.request.commands.push_back(static_cast<short int>(command) * device_.motor_axis_direction);
     }
 
@@ -264,12 +300,14 @@ int qbDeviceHW::setCommands(const std::vector<double> &commands) {
     return 0;
   }
   ROS_WARN_STREAM_NAMED("device_hw", "[DeviceHW] service [set_commands] seems no longer advertised. Trying to reconnect...");
-  waitForServices();
+  resetServicesAndWait();
   return -1;
 }
 
-void qbDeviceHW::waitForRegistration() {
-  while(registerDevice(true)) ;
+void qbDeviceHW::waitForInitialization() {
+  while(initializeDevice()) {
+    ros::Duration(1.0).sleep();
+  }
 }
 
 void qbDeviceHW::waitForServices() {
@@ -277,10 +315,6 @@ void qbDeviceHW::waitForServices() {
     service.second.waitForExistence();
   }
   ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] is connected to all the services advertise by [CommunicationHandler].");
-
-  // reset all the service clients in case they were not yet advertised during initialization
-  initializeServices();
-  waitForRegistration();
 }
 
 void qbDeviceHW::write(const ros::Time& time, const ros::Duration& period) {

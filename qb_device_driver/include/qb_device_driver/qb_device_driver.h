@@ -50,6 +50,7 @@ class qbDeviceAPI {
    */
   virtual void activate(comm_settings *file_descriptor, const int &id, bool activate_command) {
     commActivate(file_descriptor, id, static_cast<char>(activate_command));
+    ros::Duration(0.001).sleep();
   }
 
   /**
@@ -70,7 +71,7 @@ class qbDeviceAPI {
    * qbhand only the first element is filled while the other remains always \p 0; in the case of a \em qbmove both
    * the elements contain relevant data, i.e. the currents respectively of \p motor_1 and \p motor_2.
    * \return \p 0 on success.
-   * \sa getPositions(), setCommands()
+   * \sa getMeasurements(), getPositions()
    */
   virtual int getCurrents(comm_settings *file_descriptor, const int &id, std::vector<short int> &currents) {
     currents.resize(2);
@@ -113,13 +114,34 @@ class qbDeviceAPI {
    * It is used essentially to convert the measured position of the motors in \em ticks to \em radians or \em degrees.
    * \sa getParameter(), getInfo()
    */
-  virtual void getParameters(comm_settings *file_descriptor, const int &id, std::vector<int> &limits, std::vector<int> &resolutions) {
+  virtual void getParameters(comm_settings *file_descriptor, const int &id, std::vector<int> &input_mode, std::vector<int> &control_mode, std::vector<int> &resolutions, std::vector<int> &limits) {
     unsigned char parameter_buffer[2000];
     commGetParamList(file_descriptor, id, 0, NULL, 0, 0, parameter_buffer);
     ros::Duration(0.001).sleep();  // unexpected behaviour with no sleep
 
-    getParameter<int32_t>(10, parameter_buffer, limits);  // hardcoded position limits
-    getParameter<uint8_t>(6, parameter_buffer, resolutions);  // hardcoded encoder resolutions
+    getParameter<uint8_t>(5, parameter_buffer, input_mode);  // hardcoded input mode parameter id
+    getParameter<uint8_t>(6, parameter_buffer, control_mode);  // hardcoded control mode parameter id
+    getParameter<uint8_t>(7, parameter_buffer, resolutions);  // hardcoded encoder resolutions parameter id
+    getParameter<int32_t>(11, parameter_buffer, limits);  // hardcoded position limits parameter id
+  }
+
+  /**
+   * Retrieve the motor positions of the given device.
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param[out] measurements The device measurements vector composed by:
+   * - The two-element device motor current vector, expressed in \em mA: if the device is a \em qbhand only the first
+   * element is filled while the other remains always \p 0; in the case of a \em qbmove both the elements contain
+   * relevant data, i.e. the currents respectively of \p motor_1 and \p motor_2.
+   * - The device position vector, expressed in \em ticks: if the device is a \em qbhand only the first element is
+   * filled while the others remain always \p 0; in the case of a \em qbmove all the elements contain relevant data,
+   * i.e. the positions respectively of \p motor_1, \p motor_2 and \p motor_shaft (which is not directly actuated).
+   * \return \p 0 on success.
+   * \sa getCurrents(), getPositions()
+   */
+  virtual int getMeasurements(comm_settings *file_descriptor, const int &id, std::vector<short int> &measurements) {
+    measurements.resize(5);
+    return commGetCurrAndMeas(file_descriptor, id, measurements.data());
   }
 
   /**
@@ -131,7 +153,7 @@ class qbDeviceAPI {
    * contain relevant data, i.e. the positions respectively of \p motor_1, \p motor_2 and \p motor_shaft (which is
    * not directly actuated).
    * \return The number of positions retrieved, i.e. the number of encoder equipped on the given device.
-   * \sa getCurrents(), setCommands()
+   * \sa getMeasurements(), getCurrents()
    */
   virtual int getPositions(comm_settings *file_descriptor, const int &id, std::vector<short int> &positions) {
     positions.resize(3);
@@ -154,14 +176,27 @@ class qbDeviceAPI {
    * \param file_descriptor The file descriptor of the serial port on which the device is connected.
    * \param id The ID of the device of interest, in range [\p 1, \p 128].
    * \param[out] activate_status \p true if motors are on, \p false if off.
-   * \return \p 0 on success.
+   * \return \p true on success.
    * \sa activate()
    */
-  virtual int getStatus(comm_settings *file_descriptor, const int &id, bool &activate_status) {
+  virtual bool getStatus(comm_settings *file_descriptor, const int &id, bool &activate_status) {
     char status;
     int result = commGetActivate(file_descriptor, id, &status);
     activate_status = status != 0;
-    return result;
+    return result == 0;
+  }
+
+  /**
+   * Retrieve the connection status of the given device.
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param[out] activate_status \p true if motors are on, \p false if off.
+   * \return \p true on success.
+   * \sa activate()
+   */
+  virtual bool getStatus(comm_settings *file_descriptor, const int &id) {
+    char status;
+    return commGetActivate(file_descriptor, id, &status) == 0;
   }
 
   /**
@@ -176,17 +211,48 @@ class qbDeviceAPI {
   }
 
   /**
-   * Send the reference command to the motors of the given device.
+   * Send the reference command to the motors of the given device and wait for acknowledge.
    * \param file_descriptor The file descriptor of the serial port on which the device is connected.
    * \param id The ID of the device of interest, in range [\p 1, \p 128].
    * \param commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only the first
    * element is meaningful while the other remains always \p 0; in the case of a \em qbmove both the elements contain
    * relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
-   * \sa getCurrents(), getPositions()
+   * \return \p 0 on success.
+   * \sa setCommandsAsync()
    */
-  virtual void setCommands(comm_settings *file_descriptor, const int &id, std::vector<short int> &commands) {
+  virtual int setCommandsAndWait(comm_settings *file_descriptor, const int &id, std::vector<short int> &commands) {
+    ROS_ASSERT(commands.size() == 2);
+    return commSetInputsAck(file_descriptor, id, commands.data());
+  }
+
+  /**
+   * Send the reference command to the motors of the given device in a non-blocking fashion.
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only the first
+   * element is meaningful while the other remains always \p 0; in the case of a \em qbmove both the elements contain
+   * relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
+   * \return Always \p 0 (note that this is a non reliable method).
+   * \sa setCommandsAndWait()
+   */
+  virtual int setCommandsAsync(comm_settings *file_descriptor, const int &id, std::vector<short int> &commands) {
     ROS_ASSERT(commands.size() == 2);
     commSetInputs(file_descriptor, id, commands.data());
+    ros::Duration(0.00001).sleep();  // several calls may introduce serial communication errors without a wait (setCommandsAndWait is a more reliable tool)
+    return 0;
+  }
+
+  /**
+   * Set the position control PID parameters of the given device, temporarily (until power off).
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param pid The three-element [\p P, \p I, \p D] vector of parameters to be set.
+   * \return Always \p 0 (note that this is a non reliable method).
+   */
+  virtual int setPID(comm_settings *file_descriptor, const int &id, std::vector<float> &pid) {
+    ROS_ASSERT(pid.size() == 3);
+    commGetParamList(file_descriptor, id, 2, pid.data(), sizeof(float), pid.size(), NULL);  // actually set the parameter (despite of its name)
+    return 0;
   }
 
  private:
@@ -200,14 +266,35 @@ class qbDeviceAPI {
   template<class T>
   void getParameter(const int &parameter_id, unsigned char *parameter_buffer, std::vector<int> &parameter_vector) {
     parameter_vector.clear();
-    int number_of_values = parameter_buffer[parameter_id*PARAM_BYTE_SLOT + 7];
+    int number_of_values = parameter_buffer[(parameter_id-1)*PARAM_BYTE_SLOT + 7];
     int value_size = sizeof(T);
     for (int i=0; i<number_of_values; i++) {
       T parameter_field = 0;
       for (int j=0; j<value_size; j++) {
-        parameter_field += parameter_buffer[parameter_id*PARAM_BYTE_SLOT + 8 + i*value_size + value_size - j - 1] << (8 * j);
+        parameter_field += parameter_buffer[(parameter_id-1)*PARAM_BYTE_SLOT + 8 + i*value_size + value_size - j - 1] << (8 * j);
       }
       parameter_vector.push_back(parameter_field);
+    }
+  }
+
+  /**
+   * Extract the specified parameter from the given buffer where all the device parameters are stored.
+   * \tparam T The data type of the single field of the parameter to be retrieved, e.g. \p float.
+   * \param parameter_id The specific value of the parameter to be retrieved, mapped in the device firmware.
+   * \param[out] parameter_vector The vector where the values are stored (\b note: it is initially cleared).
+   * \sa getParameters()
+   */
+  template<class T>
+  void getParameter(const int &parameter_id, unsigned char *parameter_buffer, std::vector<float> &parameter_vector) {
+    parameter_vector.clear();
+    int number_of_values = parameter_buffer[(parameter_id-1)*PARAM_BYTE_SLOT + 7];
+    int value_size = sizeof(T);
+    for (int i=0; i<number_of_values; i++) {
+      std::vector<uint8_t> parameter_field(value_size, 0);
+      for (int j=0; j<value_size; j++) {
+        parameter_field.at(j) = parameter_buffer[(parameter_id-1)*PARAM_BYTE_SLOT + 8 + i*value_size + value_size - j - 1];
+      }
+      parameter_vector.push_back(*(reinterpret_cast<T*>(parameter_field.data())));
     }
   }
 };

@@ -28,6 +28,9 @@
 #ifndef QB_DEVICE_HARDWARE_INTERFACE_H
 #define QB_DEVICE_HARDWARE_INTERFACE_H
 
+// Standard libraries
+#include <regex>
+
 // ROS libraries
 #include <ros/ros.h>
 #include <hardware_interface/joint_command_interface.h>
@@ -61,7 +64,7 @@ namespace qb_device_hardware_interface {
 class qbDeviceHW : public hardware_interface::RobotHW {
  public:
   /**
-   * Initialize HW resources and interfaces, and wait until it is not registered on the Communication Handler. If the
+   * Initialize HW resources and interfaces, and wait until it is initialized from the Communication Handler. If the
    * Communication Handler is not running, wait forever. The three given parameters are strictly device-dependent, i.e.
    * the \em qbhand specific \p transmission differs from the \em qbmove one, and the actuator and joint names depend
    * not only on the device type, but also on the whole \p robot_description extracted from the URDF model. For example
@@ -69,13 +72,12 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \param transmission The shared pointer to the current transmission derived from \p transmission_interface::Transmission.
    * \param actuators The actuator names in the \p robot_description.
    * \param joints The joint names in the \p robot_description.
-   * \sa initializeInterfaces(), initializeResources(), waitForRegistration(), waitForServices()
+   * \sa initializeInterfaces(), initializeResources(), waitForInitialization(), waitForServices()
    */
   qbDeviceHW(qb_device_transmission_interface::TransmissionPtr transmission, const std::vector<std::string> &actuators, const std::vector<std::string> &joints);
 
   /**
-   * Call the service to deregister the device on the Communication Handler.
-   * \sa deregisterDevice()
+   * Deactivate motors and stop the async spinner.
    */
   virtual ~qbDeviceHW();
 
@@ -87,13 +89,24 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   /**
    * \return The device namespace used to avoid name clashes among same-type devices.
    */
-  std::string getDeviceNamespace() { return namespace_; }
+  std::string getDeviceNamespace() { return device_.name; }
 
   /**
    * This pure virtual method has to be redefined by derived classes to return the controlled joint names vector.
    * \return The vector of controller joint names.
    */
   virtual std::vector<std::string> getJoints() = 0;
+
+  /**
+   * The init function is called to initialize the RobotHW from a non-realtime thread. In particular it build the HW
+   * resources, retrieve the \p robot_description from the Parameter Server, and initialize the \p hardware_interface,
+   * the \p joint_limit_interface, and the \p transmission_interface. If everything goes as expected it also initialize
+   * the current device with the parameters retrieve from the Communication Handler.
+   * \param root_nh A NodeHandle in the root of the caller namespace.
+   * \param robot_hw_nh A NodeHandle in the namespace from which the RobotHW should read its configuration.
+   * \returns \p true on success.
+   */
+  virtual bool init(ros::NodeHandle& root_nh, ros::NodeHandle &robot_hw_nh);
 
   /**
    * Read actuator state from the hardware, propagate it to joint states and publish the whole device state to a
@@ -118,6 +131,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   ros::NodeHandle node_handle_;
   ros::Publisher state_publisher_;
   std::map<std::string, ros::ServiceClient> services_;
+  qb_device_msgs::Info device_info_;
   qb_device_hardware_interface::qbDeviceResources device_;
   qb_device_hardware_interface::qbDeviceHWResources actuators_;
   qb_device_hardware_interface::qbDeviceHWResources joints_;
@@ -125,7 +139,6 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   qb_device_joint_limits_interface::qbDeviceJointLimitsResources joint_limits_;
   qb_device_transmission_interface::qbDeviceTransmissionResources transmission_;
   urdf::Model urdf_model_;
-  std::string namespace_;
 
   /**
    * Call the service to activate the device motors and wait for the response.
@@ -140,13 +153,6 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \sa activateMotors()
    */
   virtual int deactivateMotors();
-
-  /**
-   * Call the service to deregister the device from the Communication Handler and wait for the response.
-   * \return \p 0 on success.
-   * \sa registerDevice(), waitForRegistration()
-   */
-  virtual int deregisterDevice();
 
   /**
    * Call the service to retrieve the printable configuration setup of the device and wait for the response.
@@ -164,40 +170,20 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \param[out] currents The two-element device motor current vector, expressed in \em mA: if the device is a \em
    * qbhand only the first element is filled while the other remains always \p 0; in the case of a \em qbmove both
    * the elements contain relevant data, i.e. the currents respectively of \p motor_1 and \p motor_2.
+   * \param[out] stamp The time stamp of the retrieved measurements (it is set by the process which does the read).
    * \return \p 0 on success.
    * \sa setCommands()
    */
-  virtual int getMeasurements(std::vector<double> &positions, std::vector<double> &currents);
+  virtual int getMeasurements(std::vector<double> &positions, std::vector<double> &currents, ros::Time &stamp);
 
   /**
-   * Initialize the \p hardware_interface, the \p joint_limit_interface, and the \p transmission_interface.
-   * \param transmission The shared pointer to the current transmission derived from \p transmission_interface::Transmission.
-   * \sa qb_device_hardware_interface::qbDeviceHWInterfaces::initialize(),
-   *     qb_device_joint_limits_interface::qbDeviceJointLimitsResources::initialize(),
-   *     qb_device_transmission_interface::qbDeviceTransmissionResources::initialize()
-   */
-  void initializeInterfaces(qb_device_transmission_interface::TransmissionPtr transmission);
-
-  /**
-   * Initialize the HW resources and retrieve the \p robot_description from the Parameter Server.
-   * \param actuators The actuator names in the \p robot_description.
-   * \param joints The joint names in the \p robot_description.
-   */
-  void initializeResources(const std::vector<std::string> &actuators, const std::vector<std::string> &joints);
-
-  /**
-   * Subscribe to all the services advertised by the Communication Handler.
-   */
-  void initializeServices();
-
-  /**
-   * Call the service to register the device node to the Communication Handler and wait for the response. If the
-   * registration succeed, store the device parameters received, e.g. \p position_limits.
-   * \param activate_on_registration If \p true ask for motors activation during the registration process.
+   * Call the service to initialize the device with parameters from the Communication Handler and wait for the response.
+   * If the initializaation succeed, store the device parameters received, e.g. \p position_limits. It can additionally
+   * activate motors during the initialization process, if specified in the Parameter Server.
    * \return \p 0 on success.
-   * \sa deregisterDevice(), waitForRegistration()
+   * \sa waitForInitialization()
    */
-  virtual int registerDevice(const bool &activate_on_registration);
+  virtual int initializeDevice();
 
   /**
    * Call the service to send reference commands to the device and wait for the response. Before sending the references,
@@ -219,6 +205,13 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   std::vector<std::string> addNamespacePrefix(const std::vector<std::string> &vector);
 
   /**
+   * Subscribe to all the services advertised by the Communication Handler and wait until all the services are
+   * properly advertised.
+   * \sa resetServicesAndWait(), waitForServices()
+   */
+  void initializeServicesAndWait();
+
+  /**
    * Construct a \p qb_device_msgs::StateStamped message of the whole device state with the data retrieved during the
    * \p read() and publish it to a namespaced \p "~state" topic.
    * \sa read()
@@ -226,15 +219,24 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   void publish();
 
   /**
-   * Wait until the device is registered in the Communication Handler.
-   * \sa deregisterDevice(), registerDevice()
+   * Re-subscribe to all the services advertised by the Communication Handler and wait until all the services are
+   * properly advertised. Then re-initialize the device parameters (it is assumed that the this method can be called
+   * only if the device was previously initialized), unless otherwise specified.
+   * \param reinitialize_device If \p true, i.e. by default, reinitialize the device.
+   * \sa initializeServicesAndWait(), waitForInitialization(), waitForServices()
    */
-  void waitForRegistration();
+  void resetServicesAndWait(const bool &reinitialize_device = true);
 
   /**
-   * Wait until all the services advertised by the Communication Handler are active, then reinitialize and register the device to avoid
-   * disconnection problems.
-   * \sa initializeServices(), waitForRegistration()
+   * Wait until the device is initialized.
+   * \sa initializeDevice()
+   */
+  void waitForInitialization();
+
+  /**
+   * Wait until all the services advertised by the Communication Handler are active, then reinitialize the device to
+   * avoid disconnection problems.
+   * \sa initializeServicesAndWait(), resetServicesAndWait()
    */
   void waitForServices();
 };

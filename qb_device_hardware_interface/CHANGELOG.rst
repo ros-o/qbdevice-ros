@@ -2,6 +2,22 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Add device configuration to the state topic info
+* Fix recovery on service server fault
+* Refactor node registration
+* Fix accidental repetitions with namespace prefix
+* Refactor initialization by extending the base init
+* Add method to get currents and positions together
+* Fix repetitions reliablity check
+* Add a blocking setCommands method
+* Refactor launch files and fix controllers spawner
+* Fix minors
+* Let the user decide whether to read/write or not
+* Refactor node registration
+* Add repetitions while reading from serial
+
 1.2.2 (2017-11-30)
 ------------------
 * Fix possible fault on registration

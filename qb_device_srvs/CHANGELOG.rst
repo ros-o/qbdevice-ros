@@ -2,6 +2,16 @@
 Changelog for package qb_device_srvs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Add method to temporarily change PID parameters
+* Refactor node registration
+* Add method to get currents and positions together
+* Add a blocking setCommands method
+* Let the user decide whether to read/write or not
+* Refactor node registration
+* Add repetitions while reading from serial
+
 1.2.2 (2017-11-30)
 ------------------
 

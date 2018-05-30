@@ -428,6 +428,38 @@ void commSetWatchDog( comm_settings *comm_settings_t, int id, short int wdt);
 
 void commSetInputs( comm_settings *comm_settings_t, int id, short int inputs[]);
 
+//============================================================     commSetInputsAck
+
+/** This function send reference inputs to a qbMove or a qbHand connected to the serial
+ *  port and expects an acknowledgment reply from the device.
+ *
+ *  \param  comm_settings_t     A _comm_settings_ structure containing info about the
+ *                              communication settings.
+ *
+ *  \param  id                  The device's id number.
+ *  \param  inputs              Input references.
+ *
+ *  \par Example
+ *  \code
+
+    comm_settings   comm_settings_t;
+    int             device_id = 65;
+    short int       inputs[2];
+    char            package_in[2];
+
+    openRS485(&comm_settings_t,"/dev/tty.usbserial-128");
+
+    inputs[0]   = 1000;
+    inputs[1]   = -1000;
+    commSetInputsAck(&comm_settings_t, device_id, inputs);
+    RS485Read(&comm_settings_t, device_id, package_in);
+    closeRS485(&comm_settings_t);
+
+ *  \endcode
+**/
+
+int commSetInputsAck( comm_settings *comm_settings_t, int id, short int inputs[]);
+
 //============================================================     commSetPosStiff
 
 /** This function send reference inputs to a qbMove connected to the serial

@@ -26,12 +26,21 @@
  */
 
 #include <qb_device_driver/qb_device_communication_handler.h>
+#include <qb_device_utils/ros_sigint_handler.h>
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "qb_device_communication_handler");
+  ros::init(argc, argv, "qb_device_communication_handler", ros::init_options::NoSigintHandler);
+  ros_sigint_handler::overrideHandlers();
 
-  qb_device_communication_handler::qbDeviceCommunicationHandler comunication_handler;
-  ros::waitForShutdown();
+  {
+    qb_device_communication_handler::qbDeviceCommunicationHandler comunication_handler;
+    while (!ros_sigint_handler::isShuttingDown()) {
+      ros::spinOnce();
+    }
+    // all the destructors are called before 'ros::shutdown()'
+    // DO NOT remove brackets!
+  }
 
+  ros::requestShutdown();
   return 0;
 }

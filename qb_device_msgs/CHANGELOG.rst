@@ -2,6 +2,11 @@
 Changelog for package qb_device_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Add device configuration to the state topic info
+* Add repetitions while reading from serial
+
 1.2.2 (2017-11-30)
 ------------------
 

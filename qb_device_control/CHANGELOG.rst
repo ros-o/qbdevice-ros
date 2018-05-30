@@ -2,6 +2,26 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Update doxygen documentation
+* Refactor launch files
+* Add method to temporarily change PID parameters
+* Add asynchronous requests for sporadic get/set
+* Add a unique control node
+* Fix minors
+* Fix thread spinning
+* Add basic trajectory builder methods
+* Refactor yaml waypoint trajectory parsing
+* Refactor Actions to match given hardware interfaces
+* Switch to CombinedRobotHW
+* Fix minors
+* Fix waypoints parsing source
+* Add a control loop frequency publisher
+* Refactor launch files and fix controllers spawner
+* Fix destructor calls on ROS shutdown
+* Fix minors
+
 1.2.2 (2017-11-30)
 ------------------
 * Add a step (square) wave trajectory generator

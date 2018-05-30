@@ -1,0 +1,54 @@
+<launch>
+  <!-- FIXME: cannot pass arguments with 'pass_all_args' flag which are not used in the included launch file. This explode with nested includes. Refer to kinetic 05-04-2018 (wait for fix ros_comm#889: https://github.com/ros/ros_comm/issues/889) -->
+  <!-- FIXME: unused args [get_positions, control_duration, standalone, max_repeats, activate_on_initialization, device_id, rescan_on_initialization, set_commands, device_type, get_currents] -->
+  <arg name="get_positions" doc="Fake arg: ros_comm#889"/>
+  <arg name="standalone" doc="Fake arg: ros_comm#889"/>
+  <arg name="max_repeats" doc="Fake arg: ros_comm#889"/>
+  <arg name="activate_on_initialization" doc="Fake arg: ros_comm#889"/>
+  <arg name="device_id" doc="Fake arg: ros_comm#889"/>
+  <arg name="rescan_on_initialization" doc="Fake arg: ros_comm#889"/>
+  <arg name="set_commands" doc="Fake arg: ros_comm#889"/>
+  <arg name="set_commands_async" doc="Fake arg: ros_comm#889"/>
+  <arg name="device_type" doc="Fake arg: ros_comm#889"/>
+  <arg name="get_currents" doc="Fake arg: ros_comm#889"/>
+  <arg name="get_distinct_packages" doc="Fake arg: ros_comm#889"/>
+
+
+  <!-- device info -->
+  <arg name="device_name" default="" doc="The unique device name used in the yaml controller configurations (also in the urdf if not already specified there)."/>
+  <!-- robot settings -->
+  <arg name="control_duration" default="0.01" doc="The duration of the control loop [s]."/>
+  <arg name="robot_hardware" doc="The robot hardware interface names, e.g. [device1, device2, ...]."/>
+  <arg name="robot_name" doc="The unique robot name."/>
+  <arg name="robot_namespace" default="$(arg robot_name)" doc="The unique robot namespace."/>
+  <arg name="robot_package" doc="The base package name prefix for the robot configurations [urdf, rviz, ...]."/>
+  <arg name="source_list" default="[$(arg device_name)/joint_states]" doc="The joint_states source list for the joint_state_publisher."/>
+  <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
+  <arg name="use_rviz" default="true" doc="Choose whether or not to use rviz."/>
+  <arg name="use_waypoints" default="false" doc="Choose whether or not to use the waypoint references."/>
+
+  <group ns="$(arg robot_namespace)">
+    <!-- bring up robot description, joint and robot state publishers (also can start rviz) -->
+    <include file="$(find qb_device_bringup)/launch/robot_description_bringup.launch">
+      <arg name="device_name" value="$(arg device_name)"/>
+      <arg name="robot_name" value="$(arg robot_name)"/>
+      <arg name="robot_package" value="$(arg robot_package)"/>
+      <arg name="source_list" value="$(arg source_list)"/>
+      <arg name="use_rviz" value="$(arg use_rviz)"/>
+    </include>
+
+    <!-- set up control addons (gui, waypoint, ...) -->
+    <include file="$(find qb_device_bringup)/launch/robot_opt_bringup.launch">
+      <arg name="robot_name" value="$(arg robot_name)"/>
+      <arg name="robot_package" value="$(arg robot_package)"/>
+      <arg name="use_controller_gui" value="$(arg use_controller_gui)"/>
+      <arg name="use_waypoints" value="$(arg use_waypoints)"/>
+    </include>
+
+    <!-- start the control node -->
+    <include file="$(find qb_device_bringup)/launch/robot_control_node_bringup.launch">
+      <arg name="control_duration" value="$(arg control_duration)"/>
+      <arg name="robot_hardware" value="$(arg robot_hardware)"/>
+    </include>
+  </group>
+</launch>

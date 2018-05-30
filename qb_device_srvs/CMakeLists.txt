@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_srvs VERSION 1.2.2 LANGUAGES CXX)
+project(qb_device_srvs VERSION 2.0.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -13,8 +13,9 @@ add_service_files(
   DIRECTORY srv
   FILES
     GetMeasurements.srv
-    RegisterDevice.srv
+    InitializeDevice.srv
     SetCommands.srv
+    SetPID.srv
     Trigger.srv
 )
 

@@ -10,3 +10,7 @@ qb_device_msgs/ResourceData[] actuators
 #  - shaft: position, command in [radians], velocity in [radians/s], effort in [A];
 #  - preset: position, command in [0,1], velocity in [percent/s], effort is not used.
 qb_device_msgs/ResourceData[] joints
+
+# Reliability of the retrieved measurements
+bool is_reliable
+int32 consecutive_failures

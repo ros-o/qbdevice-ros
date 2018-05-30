@@ -2,6 +2,31 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Move sleep at low level (next to API)
+* Add method to temporarily change PID parameters
+* Fix doxygen documentation
+* Fix communication errors with asynchronous reads
+* Refactor node registration
+* Add method to get currents and positions together
+* Fix minors
+* Fix repetitions reliablity check
+* Add a blocking setCommands method
+* Fix destructor calls on ROS shutdown
+* Fix minors
+* Fix unexpected fault with std::unordered_set
+* Add parallelization with several USB connected
+* Let the user decide whether to read/write or not
+* Add an alert if maximum repetitions is set to zero
+* Refactor node registration
+* Add a real isConnected method
+* Refactor device scan method with repetitions
+* Retrieve control and input mode device settings
+* Implement repetitions also for getMeasurements
+* Add repetitions while reading from serial
+* Move error checks in ROS service callbacks
+
 1.2.2 (2017-11-30)
 ------------------
 * Reduce communication errors

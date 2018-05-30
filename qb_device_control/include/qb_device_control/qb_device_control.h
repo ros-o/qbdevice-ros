@@ -1,21 +1,21 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
- *  
+ *
  *  Copyright (c) 2016-2017, qbrobotics®
  *  All rights reserved.
- *  
+ *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
  *  following conditions are met:
- *  
+ *
  *  * Redistributions of source code must retain the above copyright notice, this list of conditions and the
  *    following disclaimer.
- *  
+ *
  *  * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
  *    following disclaimer in the documentation and/or other materials provided with the distribution.
- *  
+ *
  *  * Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
  *    products derived from this software without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  *  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -30,11 +30,15 @@
 
 // Standard libraries
 #include <regex>
+#include <mutex>
 
 // ROS libraries
 #include <actionlib/client/simple_action_client.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <controller_manager/controller_manager.h>
+#include <combined_robot_hw/combined_robot_hw.h>
+#include <ros/callback_queue.h>
+#include <std_msgs/Int32.h>
 
 // internal libraries
 #include <qb_device_hardware_interface/qb_device_hardware_interface.h>
@@ -46,123 +50,161 @@ namespace qb_device_control {
  * it needs to be initialized with the proper derived HW interface, e.g. \p qbHandHW for the \em qbhand. The core part
  * is given by the \p update() which is called each time the timer triggers (the control loop frequency is settable
  * from the Parameter Server), and which implements the general control law: sensors reading from the device, control
- * action computation according to the loaded controller, and actuator reference commands writing to the hardware. This
- * class also provides a simple waypoints trajectory control which is automatically used in case waypoints are retrieved
- * from the Parameter Server.
- * \sa qb_hand_control::qbHandControl, qb_move_control::qbMoveControl
+ * action computation according to the loaded controller, and actuator reference commands writing to the hardware; plus
+ * possible spare asynchronous requests at the end of each loop. This class also provides a simple waypoints trajectory
+ * control which is automatically used in case \p use_waypoints ROS param is set in the Parameter Server.
+ * Last but not least, this class exploits the \p combined_robot_hw::CombinedRobotHW to be able to control several
+ * devices in a single control node, if the Parameter Server is properly set up.
  */
 class qbDeviceControl {
  public:
   /**
-   * Initialize the control structures and wait until all the required ROS interfaces are started. In detail, initialize
-   * the Control Manager with the given Device HardWare interface, i.e. the \p qbHandHW or \p qbMoveHW according to the
-   * current qbrobotics device in use. Then wait until the Control Manager is started, the specific device controllers
-   * are spawned and the Action Server is advertising the proper control action. Also retrieve a set of control
-   * reference waypoints to perform a cyclic demo around them, automatically. If the set is not specified in the
-   * Parameter Server (under the private \p "~waypoints" ROS param), wait until an external reference is given, e.g.
-   * through the joint trajectory GUI or from a specific derived control class.
-   * \param device The shared pointer to the current HW interface derived from \p qb_device_hardware_interface::qbDeviceHW.
-   * \sa parseWaypoints(), waitForActionServer(), waitForControllerManager(), waitForControllers()
+   * Initialize the control structures needed by \p ros_control: the \p combined_robot_hw::CombinedRobotHW to combine
+   * several device hardware interfaces in a single control node, the \p controller_manager::ControllerManager to
+   * exploit the read/update/write control loop, and Action Clients to be able to send reference trajectories to their
+   * relative Action Server properly set up during the system bringup.
+   * Many of the parameters are retrieved from the Parameter Server which plays a crucial role in the initialization,
+   * e.g. a set of reference waypoints can be retrieved to fill the joint trajectories for the Action Clients, so the
+   * user need to be aware of all the required parameters (cfr. the ROS wiki).
+   * \sa initActionClients(), parseWaypoints(), controlSetupCallback(), qb_device_hardware_interface::qbDeviceHW::init()
    */
-  qbDeviceControl(qb_device_hardware_interface::qbDeviceHWPtr device);
+  qbDeviceControl();
 
   /**
-   * Do nothing.
+   * Stop timer and spinner structures.
    */
   virtual ~qbDeviceControl();
 
   /**
    * Build a \p control_msgs::FollowJointTrajectoryAction goal with the given joint trajectory and make a call to the
-   * Action Server (using the just created goal).
-   * \param joint_trajectory The waypoint trajectory properly filled for all the joints.
-   * \sa move(const std::map<double, std::vector<double>> &), setTrajectory()
+   * Action Server relative to the provided controller (using the just created goal).
+   * \param joint_trajectory The waypoint trajectory properly filled for all the joints of the controller.
+   * \param controller The action controller name.
+   * \sa move(), waitForResult()
    */
-  void move(const trajectory_msgs::JointTrajectory &joint_trajectory);
+  void move(const trajectory_msgs::JointTrajectory &joint_trajectory, const std::string &controller);
 
   /**
-   * Retrieve the control waypoints from the Parameter Server. If not specified under the private \p "~waypoints" ROS
-   * param, do nothing.
-   * \param waypoint_map_name The name of the ROS parameter which contains the list (i.e. not mapping) of waypoints.
-   * Each element is mapping which keys are [\p time, \p joint_positions] .
-   * \param[out] waypoint_map The waypoint trajectory map containing pairs of [\p time, \p joint_positions]. If the \p
-   * waypoint_map_name is not present in the Parameter Server the trajectory remains unchanged, otherwise it is cleared
-   * and filled with the specified values.
-   * \sa xmlCast()
-   */
-  void parseWaypoints(const std::string &waypoint_map_name, std::map<double, std::vector<double>> &waypoint_map);
-
-  /**
-   * Fill a \p trajectory_msgs::JointTrajectory ROS message with the given waypoint trajectory map containing pairs of
-   * [\p time, \p joint_positions].
-   * \param waypoints_map The waypoint trajectory map containing pairs of [\p time, \p joint_positions].
-   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
-   * \sa move(const trajectory_msgs::JointTrajectory &)
-   * \todo Add support for \p joint_velocities and \p joint_accelerations as additional specification for waypoints.
-   */
-  trajectory_msgs::JointTrajectory getTrajectory(const std::map<double, std::vector<double>> &waypoints_map);
-
-  /**
-   * Fill a \p trajectory_msgs::JointTrajectory ROS message with a sine wave constructed from the given parameters.
+   * Build a single-joint sine wave point trajectory from the given parameters.
    * \param amplitude The amplitude of the sine wave position trajectory for the motor [rad].
    * \param period The period of the sine wave position trajectory for the motor [s].
    * \param samples_per_period The number of samples in a whole period.
    * \param periods The number of periods concatenated in the trajectory.
-   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
-   * \sa move(const trajectory_msgs::JointTrajectory &)
+   * \return The vector of \p trajectory_msgs::JointTrajectoryPoint properly filled.
+   * \sa getCustomTrajectory(), getTrapezoidalPoints()
    */
-  trajectory_msgs::JointTrajectory getSinusoidalTrajectory(const double &amplitude, const double &period, const int &samples_per_period, const int &periods);
+  std::vector<trajectory_msgs::JointTrajectoryPoint> getSinusoidalPoints(const double &amplitude, const double &period, const int &samples_per_period, const int &periods);
 
   /**
-   * Fill a \p trajectory_msgs::JointTrajectory ROS message with a step (square) wave constructed from the given parameters.
-   * \param amplitude The amplitude of the step wave position trajectory for the motor [rad]. Note that the wave is symmetrical [-A, A].
+   * Build a single-joint trapezoidal wave point trajectory from the given parameters.
+   * \param amplitude The amplitude of the step wave position trajectory for the motor [rad]. Note that the wave is
+   * symmetrical [-A, A].
    * \param period The period of the step wave position trajectory for the motor [s].
+   * \param ramp_duration The duration of the ramp from \p -amplitude to \p amplitude [s].
    * \param periods The number of periods concatenated in the trajectory.
-   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
-   * \sa move(const trajectory_msgs::JointTrajectory &)
+   * \return The vector of \p trajectory_msgs::JointTrajectoryPoint properly filled.
+   * \sa getCustomTrajectory(), getSinusoidalPoints()
    */
-  trajectory_msgs::JointTrajectory getStepTrajectory(const double &amplitude, const double &period, const int &periods);
+  std::vector<trajectory_msgs::JointTrajectoryPoint> getTrapezoidalPoints(const double &amplitude, const double &period, const double &ramp_duration, const int &periods);
+
+  /**
+   * Build a joint trajectory for the given controller using the given points, which must match the controller joints.
+   * \warning All the single-joint trajectories must be of the same size and it is assumed that the timing is the same.
+   * \param joint_points The vector of single-joint point trajectories.
+   * \param controller The action controller name (used for joint names).
+   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
+   * \sa move(const trajectory_msgs::JointTrajectory &, const std::string &), getSinusoidalPoints(), getStepPoints()
+   */
+  trajectory_msgs::JointTrajectory getCustomTrajectory(const std::vector<std::vector<trajectory_msgs::JointTrajectoryPoint>> &joint_points, const std::string &controller);
+
+  /**
+   * Retrieve a set of reference waypoints from the Parameter Server. The waypoints are composed by a vector where each
+   * element must contains:
+   * - a field named \p time which can be either a single value or an interval for which \p joint_positions hold;
+   * - a list named \p joint_positions of names which contain the vector of joint position references of the relative
+   * device, valid for the above time interval.
+   * Additionally (but it is not required), there can also be specified:
+   * - a list named \p joint_velocities;
+   * - a list named \p joint_accelerations;
+   * which have an obvious interpretation. When these are not present in the Parameter Server, it is assigned the value
+   * \p 0.0 to each joint.
+   * \warning Please note that each of the above list must contain the exact number and order of joints of the relative
+   * controller to which is paired.
+   * \param node_handle The Node Handle in which the waypoints are parsed, under \p .../waypoints (if present).
+   * \param controller The action controller name (used for joint names).
+   * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
+   * \sa move(const trajectory_msgs::JointTrajectory &, const std::string &), parseVector(), xmlCast()
+   */
+  trajectory_msgs::JointTrajectory getWaypointTrajectory(ros::NodeHandle node_handle, const std::string &controller);
 
   /**
    * Wait until the action is completed or the given timeout is reached.
    * \param timeout The maximum amount of time to wait.
+   * \param controller The action controller name.
    * \return \p true if action has ended.
    */
-  bool waitForResult(const ros::Duration &timeout);
+  bool waitForResult(const ros::Duration &timeout, const std::string &controller);
 
  protected:
+  ros::CallbackQueuePtr callback_queue_;
   ros::AsyncSpinner spinner_;
   ros::NodeHandle node_handle_;
-  ros::ServiceClient sync_nodes_;
+  ros::NodeHandle node_handle_control_;
+  ros::Publisher frequency_publisher_;
+  ros::ServiceClient get_measurements_client_;
+  ros::ServiceClient set_commands_client_;
+  ros::ServiceClient set_pid_client_;
+  ros::ServiceServer get_async_measurements_server_;
+  ros::ServiceServer set_async_commands_server_;
+  ros::ServiceServer set_async_pid_server_;
   ros::WallTimer control_setup_timer_;
   ros::WallTimer control_timer_;
+  ros::WallTimer frequency_timer_;
   ros::WallDuration control_duration_;
-  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> action_client_;
+
+  std::mutex sync_protector_;
+  std::vector<std::string> device_names_;
+  std::vector<std::string> controllers_;
+  std::map<std::string, std::string> controller_device_name_;
+  std::map<std::string, std::vector<std::string>> controller_joints_;
+  std::map<std::string, std::unique_ptr<actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>>> action_clients_;
+  std::map<std::string, trajectory_msgs::JointTrajectory> joint_trajectories_;
+
+  // do not change the following variables order
+  combined_robot_hw::CombinedRobotHW devices_;
+  bool init_success_;
   controller_manager::ControllerManager controller_manager_;
-  qb_device_hardware_interface::qbDeviceHWPtr device_;
-  std::map<double, std::vector<double>> waypoint_trajectory_map_;
-  trajectory_msgs::JointTrajectory waypoint_joint_trajectory_;
+
+  /**
+   * Make all the calls to the Action Servers relative to all the waypoint trajectories previously parsed.
+   * \sa move(const trajectory_msgs::JointTrajectory &, const std::string &), waitForResult()
+   */
+  void move();
 
  private:
-  /**
-   * Do nothing.
-   * \todo Add synchronization among nodes.
-   */
-  void actionActiveCallback();
+  int counter_;  // control loop counter (just to check the frequency)
 
   /**
-   * Restart the waypoint trajectory automatically if waypoints have been retrieved in the initialization. Otherwise
-   * do nothing.
+   * Do nothing apart from debug info.
+   * \param controller The action controller name.
+   */
+  void actionActiveCallback(const std::string &controller);
+
+  /**
+   * Restart the waypoint trajectory automatically if waypoints have been retrieved during the initialization.
    * \param state The final state of the action.
    * \param result The error code and error message (\p 0 if succeeds).
+   * \param controller The action controller name.
    * \sa move(const std::map<double, std::vector<double>> &)
    */
-  void actionDoneCallback(const actionlib::SimpleClientGoalState &state, const control_msgs::FollowJointTrajectoryResultConstPtr &result);
+  void actionDoneCallback(const actionlib::SimpleClientGoalState &state, const control_msgs::FollowJointTrajectoryResultConstPtr &result, const std::string &controller);
 
   /**
-   * Do nothing.
+   * Do nothing apart from debug info.
    * \param feedback The action feedback state.
+   * \param controller The action controller name.
    */
-  void actionFeedbackCallback(const control_msgs::FollowJointTrajectoryFeedbackConstPtr &feedback);
+  void actionFeedbackCallback(const control_msgs::FollowJointTrajectoryFeedbackConstPtr &feedback, const std::string &controller);
 
   /**
    * Call the \p update() each time the timer triggers.
@@ -179,40 +221,91 @@ class qbDeviceControl {
   void controlSetupCallback(const ros::WallTimerEvent &timer_event);
 
   /**
+   * Extract the device names associated to the given controller (each controller name is assumed to start with the
+   * device name).
+   * \param controller The action controller name.
+   * \return The device name associated to the controller.
+   */
+  std::string extractDeviceName(const std::string &controller);
+
+  /**
+   * Publish the real control loop frequency in Hz in the relative topic
+   * \param timer_event The timer event struct which stores timing info.
+   * \sa controlCallback()
+   */
+  void frequencyCallback(const ros::WallTimerEvent &timer_event);
+
+  /**
+   * Make a call to the same type of service provided by the Communication Handler. The peculiarity is that this method
+   * preserves the synchrony of the control loop, i.e. it makes the request only in the "asynchronous time slot" at the
+   * end of the control loop (after the read/update/write sequence).
+   * \warning The asynchronous calls must be invoked with a very low frequency w.r.t. the one of the control loop; this
+   * to prevent performance degradation. Note that there is no automatic limitation of these invocations.
+   * \param request The request of the given service (see qb_device_srvs::GetMeasurements for details).
+   * \param response The response of the given service (see qb_device_srvs::GetMeasurements for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   * \sa qb_device_communication_handler::getMeasurementsCallback()
+   */
+  bool getAsyncMeasurementsCallback(qb_device_srvs::GetMeasurementsRequest &request, qb_device_srvs::GetMeasurementsResponse &response);
+
+  /**
+   * Retrieve all the controllers which have their parameters set in the Parameter Server and initialize their relative
+   * Action Clients. Also set few additional member variables.
+   */
+  void initActionClients();
+
+  /**
+   * Parse the given \p XmlRpcValue as a \p std::vector, since the \p XmlRpc::XmlRpcValue class does not handle this
+   * conversion yet.
+   * \param xml_value The value retrieved from the Parameter Server to be parsed as a \p std::vector.
+   * \param controller The action controller name.
+   * \param[out] vector The \p std::vector parsed from the \p XmlRpcValue.
+   * \return \p true on success.
+   * \sa parseWaypoints(), xmlCast()
+   */
+  bool parseVector(const XmlRpc::XmlRpcValue &xml_value, const std::string &controller, std::vector<double> &vector);
+
+  /**
+   * Parse all the waypoints set up in the Parameter Server at \p <robot_namespace>/waypoints.
+   * \sa getWaypointTrajectory()
+   */
+  void parseWaypoints();
+
+  /**
+   * Make a call to the same type of service provided by the Communication Handler. The peculiarity is that this method
+   * preserves the synchrony of the control loop, i.e. it makes the request only in the "asynchronous time slot" at the
+   * end of the control loop (after the read/update/write sequence).
+   * \warning The asynchronous calls must be invoked with a very low frequency w.r.t. the one of the control loop; this
+   * to prevent performance degradation. Note that there is no automatic limitation of these invocations.
+   * \param request The request of the given service (see qb_device_srvs::SetCommands for details).
+   * \param response The response of the given service (see qb_device_srvs::SetCommands for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   * \sa qb_device_communication_handler::setCommandsCallback()
+   */
+  bool setAsyncCommandsCallback(qb_device_srvs::SetCommandsRequest &request, qb_device_srvs::SetCommandsResponse &response);
+
+  /**
+   * Make a call to the same type of service provided by the Communication Handler. The peculiarity is that this method
+   * preserves the synchrony of the control loop, i.e. it makes the request only in the "asynchronous time slot" at the
+   * end of the control loop (after the read/update/write sequence).
+   * \warning The asynchronous calls must be invoked with a very low frequency w.r.t. the one of the control loop; this
+   * to prevent performance degradation. Note that there is no automatic limitation of these invocations.
+   * \param request The request of the given service (see qb_device_srvs::SetPID for details).
+   * \param response The response of the given service (see qb_device_srvs::SetPID for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   * \sa qb_device_communication_handler::setPIDCallback()
+   */
+  bool setAsyncPIDCallback(qb_device_srvs::SetPIDRequest &request, qb_device_srvs::SetPIDResponse &response);
+
+  /**
    * Read the current state from the HW, update all active controllers, and send the new references to the HW. The
    * control references follow the current implementation of the controllers in use.
+   * \note During this method, no asynchronous call is executed to preserve the order of reads and writes to the all
+   * the devices. When this method ends, the pending asynchronous request are served.
    * \param time The current time.
    * \param period The time passed since the last call to this method, i.e. the control period.
    */
   void update(const ros::WallTime& time, const ros::WallDuration& period);
-
-  /**
-   * Wait until the specific Action Server is up. It is configured to search for an Action Server which advertise an
-   * action ending with \p "_trajectory_controller/follow_joint_trajectory".
-   * \sa qbDeviceControl()
-   */
-  void waitForActionServer();
-
-  /**
-   * Wait until the Controller Manager for the specific HardWare interface is up.
-   * \sa qbDeviceControl()
-   */
-  void waitForControllerManager();
-
-  /**
-   * Wait until the namespaced controllers in the Parameter Server are loaded in the Controller Manager. Search for all
-   * the parameters nested in the device namespace which end with \p "_controller" and which have a subparameter called
-   * \p "type".
-   * \sa qbDeviceControl()
-   */
-  void waitForControllers();
-
-  /**
-   * Wait until all the other device nodes registered on the Communication Handler are ready. This is a sort of
-   * synchronization between nodes: the maximum delay is 1 millisecond.
-   * \sa qbDeviceControl()
-   */
-  void waitForOtherNodes();
 
   /**
    * Cast an \p XmlRpcValue from \p TypeDouble, \p TypeInt or \p TypeBoolean to the specified template type. This is
@@ -221,7 +314,7 @@ class qbDeviceControl {
    * \tparam T The type to cast to.
    * \param xml_value The wrong-casted value.
    * \return The casted value.
-   * \sa parseWaypoints()
+   * \sa parseWaypoints(), parseVector()
    */
   template<class T> T xmlCast(XmlRpc::XmlRpcValue xml_value);
 };

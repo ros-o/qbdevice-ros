@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_driver VERSION 1.2.2 LANGUAGES CXX)
+project(qb_device_driver VERSION 2.0.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     qb_device_srvs
+    qb_device_utils
 )
 
 include_directories(include
@@ -20,6 +21,7 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     qb_device_srvs
+    qb_device_utils
 )
 
 # Build Settings

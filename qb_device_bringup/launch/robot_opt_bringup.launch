@@ -1,0 +1,13 @@
+<launch>
+  <arg name="robot_name" doc="The unique robot name."/>
+  <arg name="robot_package" doc="The base package name prefix for the robot configurations [urdf, rviz, ...]."/>
+  <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
+  <arg name="use_waypoints" default="false" doc="Choose whether or not to use the waypoint references."/>
+
+  <!-- controller gui spawner -->
+  <node name="controller_gui" pkg="rqt_joint_trajectory_controller" type="rqt_joint_trajectory_controller" respawn="true" output="screen" if="$(arg use_controller_gui)"/>
+
+  <!-- waypoint settings -->
+  <param name="use_waypoints" type="bool" value="$(arg use_waypoints)" if="$(arg use_waypoints)"/>
+  <rosparam file="$(eval find(robot_package + '_control') + '/config/' + robot_name + '_waypoints.yaml')" command="load" if="$(arg use_waypoints)"/>
+</launch>

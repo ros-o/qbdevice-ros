@@ -25,14 +25,22 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef QB_DEVICE_SRVS_H
-#define QB_DEVICE_SRVS_H
+#include <qb_device_control/qb_device_control.h>
+#include <qb_device_utils/ros_sigint_handler.h>
 
-// auto-generated msg headers
-#include <qb_device_srvs/GetMeasurements.h>
-#include <qb_device_srvs/InitializeDevice.h>
-#include <qb_device_srvs/SetCommands.h>
-#include <qb_device_srvs/SetPID.h>
-#include <qb_device_srvs/Trigger.h>
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "qb_device_control", ros::init_options::NoSigintHandler);
+  ros_sigint_handler::overrideHandlers();
 
-#endif //QB_DEVICE_SRVS_H
+  {
+    qb_device_control::qbDeviceControl qb_device_control;
+    while (!ros_sigint_handler::isShuttingDown()) {
+      ros::spinOnce();
+    }
+    // all the destructors are called before 'ros::shutdown()'
+    // DO NOT remove brackets!
+  }
+
+  ros::requestShutdown();
+  return 0;
+}

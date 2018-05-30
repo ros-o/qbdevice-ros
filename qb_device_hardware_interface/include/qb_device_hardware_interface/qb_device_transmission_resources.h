@@ -44,6 +44,14 @@ class qbDeviceTransmissionResources {
   qbDeviceTransmissionResources() {}
 
   /**
+   * Initialize the transmission Resource.
+   * \param transmission The shared pointer to the transmission derived from \p transmission_interface::Transmission.
+   */
+  qbDeviceTransmissionResources(TransmissionPtr &transmission) {
+    transmission_ = transmission;
+  }
+
+  /**
    * Do nothing.
    */
   virtual ~qbDeviceTransmissionResources() {}
@@ -54,20 +62,18 @@ class qbDeviceTransmissionResources {
   const TransmissionPtr& getTransmission() { return transmission_; }
 
   /**
-   * Initialize the transmission Resource and its interfaces. The interfaces supported are the one which map the
+   * Initialize the Device Transmission Resources interfaces. The interfaces supported are the one which map the
    * actuator state to joint state (\p position, \p velocity and \p effort), i.e. from the physical device to the model
    * representation, and the corresponding reverse interface which map the joint position to the actuator position,
    * since the device is controllable only with motor position references.
    * \param transmission_name The transmission name.
-   * \param transmission The shared pointer to the transmission derived from \p transmission_interface::Transmission.
    * \param actuators The device HW actuators Resource.
    * \param joints The device HW joints Resource.
    * \sa setHandleData()
    * \todo Actually qbrobotics devices are controllable both in position and in current (effort), but the joint effort
    * to actuator effort interface is not yet planned to be implemented.
    */
-  void initialize(const std::string &transmission_name, TransmissionPtr transmission, qb_device_hardware_interface::qbDeviceHWResources &actuators, qb_device_hardware_interface::qbDeviceHWResources &joints) {
-    transmission_ = transmission;
+  void initialize(const std::string &transmission_name, qb_device_hardware_interface::qbDeviceHWResources &actuators, qb_device_hardware_interface::qbDeviceHWResources &joints) {
     setHandleData<transmission_interface::ActuatorData>(actuator_states_, actuator_commands_, actuators);
     setHandleData<transmission_interface::JointData>(joint_states_, joint_commands_, joints);
     actuator_to_joint_state.registerHandle(transmission_interface::ActuatorToJointStateHandle(transmission_name, transmission_.get(), actuator_states_.at(0), joint_states_.at(0)));

@@ -32,7 +32,6 @@
 namespace qb_device_hardware_interface {
 /**
  * The qbrobotics Device Resources contains just few device information. The most important is the device ID.
- * \todo Add the full device parameter state.
  */
 class qbDeviceResources {
  public:
@@ -51,7 +50,13 @@ class qbDeviceResources {
    */
   qbDeviceResources(const int &signed_id)
       : motor_axis_direction((0 < signed_id) - (signed_id < 0)),
-        id(std::abs(signed_id)) {
+        id(std::abs(signed_id)),
+        max_repeats(3),
+        get_currents(true),
+        get_positions(true),
+        get_distinct_packages(false),
+        set_commands(true),
+        set_commands_async(false) {
     // qbhand uses only a subset of the followings
     position_limits.resize(4);  // qbmove has two motors
     encoder_resolutions.resize(3);  // qbmove has one encoder per motor and one for the shaft
@@ -62,12 +67,21 @@ class qbDeviceResources {
    */
   virtual ~qbDeviceResources() {}
 
+  // device info
   int id;
   int motor_axis_direction;
-  std::string serial_port;
-  //TODO: add the full device state
+  std::string name;  // device name is chosen to properly set ROS namespaces to avoid name clashes
+  std::string serial_port;  // serial port to which the device is connected
   std::vector<int> position_limits;  // lower and upper limits for each motor [ticks]
   std::vector<int> encoder_resolutions;  // used to convert from [ticks] to [radians/degrees] and vice versa
+
+  // read/write settings for the current device
+  int max_repeats;  // max number of consecutive repetitions to mark retrieved data as corrupted
+  bool get_currents;  // specify if motor currents are retrieved at each control loop
+  bool get_positions;  // specify if motor positions are retrieved at each control loop
+  bool get_distinct_packages;  // old devices cannot retrieve current and position measurements in a single package
+  bool set_commands;  // specify if command references are sent at each control loop
+  bool set_commands_async;  // specify if command references are sent in a non-blocking fashion
 };
 
 /**
@@ -135,6 +149,17 @@ class qbDeviceHWResources {
     soft_limits.resize(joint_size);
   }
 
+  /**
+   * Compare the given consecutive failures w.r.t. the given maximum number of consecutive repetitions permitted and
+   * set the reliability of the measurements.
+   * \param max_repeats The maximum number of consecutive repetitions to mark retrieved data as corrupted
+   * \param consecutive_failures The number of consecutive failures while retrieving measurements from the device
+   */
+  inline void setReliability(const int &max_repeats, const int &consecutive_failures) {
+    this->consecutive_failures = consecutive_failures;
+    this->is_reliable = consecutive_failures >= 0 && consecutive_failures <= max_repeats;
+  }
+
   std::vector<std::string> names;
   std::vector<double> positions;
   std::vector<double> velocities;
@@ -142,6 +167,9 @@ class qbDeviceHWResources {
   std::vector<double> commands;
   std::vector<joint_limits_interface::JointLimits> limits;
   std::vector<joint_limits_interface::SoftJointLimits> soft_limits;
+  ros::Time stamp;  // actual time stamp of stored measurements
+  bool is_reliable;  // specify whether stored measurements are reliable or not
+  int consecutive_failures;  // the number of consecutive failures while retrieving measurements from the device
 };
 
 /**

@@ -908,14 +908,62 @@ int commGetActivate(comm_settings *comm_settings_t, int id, char *activate){
 // This function send reference inputs to the qb move.
 //==============================================================================
 
-void commSetInputs(comm_settings *comm_settings_t, int id, short int inputs[]) {
+int commSetInputsAck(comm_settings *comm_settings_t, int id, short int inputs[]) {
 
     char data_out[BUFFER_SIZE];         // output data buffer
+    char package_in[BUFFER_SIZE];       // output data buffer
+    int package_in_size;
 
 #if (defined(_WIN32) || defined(_WIN64))
     DWORD package_size_out;             // for serial port access
 #else
-    unsigned char package_in[BUFFER_SIZE];
+    int n_bytes;
+#endif
+
+
+    data_out[0] = ':';
+    data_out[1] = ':';
+    data_out[2] = (unsigned char) id;
+    data_out[3] = 6;
+
+    data_out[4] = CMD_SET_INPUTS_ACK;                // command
+    data_out[5] = ((char *) &inputs[0])[1];
+    data_out[6] = ((char *) &inputs[0])[0];
+    data_out[7] = ((char *) &inputs[1])[1];
+    data_out[8] = ((char *) &inputs[1])[0];
+    data_out[9] = checksum(data_out + 4, 5);   // checksum
+
+#if (defined(_WIN32) || defined(_WIN64))
+    WriteFile(comm_settings_t->file_handle, data_out, 10, &package_size_out, NULL);
+#else
+    ioctl(comm_settings_t->file_handle, FIONREAD, &n_bytes);
+    if(n_bytes)
+        read(comm_settings_t->file_handle, package_in, n_bytes);
+
+    write(comm_settings_t->file_handle, data_out, 10);
+#endif
+
+    package_in_size = RS485read(comm_settings_t, id, package_in);
+    if (package_in_size < 0)
+        return package_in_size;
+
+    return 0;
+
+}
+//==============================================================================
+//                                                               commSetInputs
+//==============================================================================
+// This function send reference inputs to the qb move.
+//==============================================================================
+
+void commSetInputs(comm_settings *comm_settings_t, int id, short int inputs[]) {
+
+    char data_out[BUFFER_SIZE];         // output data buffer
+    char package_in[BUFFER_SIZE];       // output data buffer
+
+#if (defined(_WIN32) || defined(_WIN64))
+    DWORD package_size_out;             // for serial port access
+#else
     int n_bytes;
 #endif
 

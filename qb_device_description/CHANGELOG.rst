@@ -2,6 +2,11 @@
 Changelog for package qb_device_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2018-05-30)
+------------------
+* Refactor launch files
+* Refactor launch files and fix controllers spawner
+
 1.2.2 (2017-11-30)
 ------------------
 

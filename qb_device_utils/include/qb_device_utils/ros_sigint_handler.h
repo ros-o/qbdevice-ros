@@ -25,14 +25,49 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef QB_DEVICE_SRVS_H
-#define QB_DEVICE_SRVS_H
+#ifndef QB_DEVICE_SIGINT_HANDLER_H
+#define QB_DEVICE_SIGINT_HANDLER_H
 
-// auto-generated msg headers
-#include <qb_device_srvs/GetMeasurements.h>
-#include <qb_device_srvs/InitializeDevice.h>
-#include <qb_device_srvs/SetCommands.h>
-#include <qb_device_srvs/SetPID.h>
-#include <qb_device_srvs/Trigger.h>
+// specific for custom SIGINT handler
+#include <signal.h>
+#include <ros/xmlrpc_manager.h>
 
-#endif //QB_DEVICE_SRVS_H
+namespace ros_sigint_handler {
+// signal-safe flag for whether shutdown is requested
+static volatile sig_atomic_t g_request_shutdown = 0;
+
+// replacement SIGINT handler
+static void mySigIntHandler(int _) {
+  (void)_;
+  g_request_shutdown = 1;  // set flag
+}
+
+// replacement "shutdown" XMLRPC callback
+static void shutdownCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result) {
+  int num_params = 0;
+  if (params.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+    num_params = params.size();
+  }
+  if (num_params > 1) {
+    std::string reason = params[1];
+    ROS_WARN("Shutdown request received. Reason: [%s]", reason.c_str());
+    g_request_shutdown = 1;  // set flag
+  }
+
+  result = ros::xmlrpc::responseInt(1, "", 0);
+}
+
+int isShuttingDown() {
+  return g_request_shutdown;
+}
+
+void overrideHandlers() {
+  // override SIGINT handler
+  signal(SIGINT, mySigIntHandler);
+  // override XMLRPC shutdown
+  ros::XMLRPCManager::instance()->unbind("shutdown");
+  ros::XMLRPCManager::instance()->bind("shutdown", shutdownCallback);
+}
+}  // namespace ros_sigint_handler
+
+#endif // QB_DEVICE_SIGINT_HANDLER_H
