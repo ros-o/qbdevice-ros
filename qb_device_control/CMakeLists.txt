@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_control VERSION 2.0.0 LANGUAGES CXX)
+project(qb_device_control VERSION 2.0.1 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -11,8 +11,6 @@ find_package(catkin REQUIRED
     controller_manager
     qb_device_hardware_interface
     qb_device_utils
-    qb_hand_hardware_interface
-    qb_move_hardware_interface
 )
 
 include_directories(include
@@ -32,8 +30,6 @@ catkin_package(
     controller_manager
     qb_device_hardware_interface
     qb_device_utils
-    qb_hand_hardware_interface
-    qb_move_hardware_interface
 )
 
 # Build Settings

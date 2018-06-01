@@ -2,6 +2,10 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.1 (2018-06-01)
+------------------
+* Fix dependencies
+
 2.0.0 (2018-05-30)
 ------------------
 * Update doxygen documentation
