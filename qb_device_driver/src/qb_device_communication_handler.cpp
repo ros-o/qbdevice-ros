@@ -272,6 +272,9 @@ int qbDeviceCommunicationHandler::getSerialPortsAndDevices(const int &max_repeat
     std::array<char, 255> devices;
     int devices_number = device_api_->getDeviceIds(&file_descriptors_.at(serial_ports.at(i)), devices);
     for (int j=0; j<devices_number; j++) {
+      if (devices.at(j) == 120) {
+        continue;  // ID 120 is reserved for dummy board which should not be considered as a connected device
+      }
       // actually a std::map does not let same-id devices on distinct serial ports
       connected_devices.insert(std::make_pair(static_cast<int>(devices.at(j)), serial_ports.at(i)));
     }
