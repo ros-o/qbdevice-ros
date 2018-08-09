@@ -1,6 +1,6 @@
 <package format="2">
   <name>qb_device_bringup</name>
-  <version>2.0.2</version>
+  <version>2.0.3</version>
   <description>
     This package contains a device-independent bringup utilities for qbrobotics® devices.
   </description>
