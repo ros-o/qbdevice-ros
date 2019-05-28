@@ -2,6 +2,14 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2019-05-28)
+------------------
+* Add comments for future changes
+* Add a simulator mode to debug joint trajectories
+* Fix minor style issues
+* Fix position limits initialization
+* Fix minor style issues
+
 2.0.3 (2018-08-09)
 ------------------
 * Update license agreement copyright

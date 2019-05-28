@@ -2,6 +2,15 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2019-05-28)
+------------------
+* Improve inheritance for other devices
+* Update documentation
+* Add a simulator mode to debug joint trajectories
+* Add specific joint limits for the delta
+* Add interactive markers startup activation
+* Fix set/reset use_waypoints at each launch
+
 2.0.3 (2018-08-09)
 ------------------
 

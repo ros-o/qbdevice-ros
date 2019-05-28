@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_control VERSION 2.0.3 LANGUAGES CXX)
+project(qb_device_control VERSION 2.1.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -51,6 +51,11 @@ add_dependencies(qb_device_default
 # Exported libraries
 add_library(${PROJECT_NAME}
   src/qb_device_control.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}
+  PUBLIC
+    ${catkin_LIBRARIES}
 )
 
 add_dependencies(${PROJECT_NAME}

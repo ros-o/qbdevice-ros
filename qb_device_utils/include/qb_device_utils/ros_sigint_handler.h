@@ -43,7 +43,7 @@ static void mySigIntHandler(int _) {
 }
 
 // replacement "shutdown" XMLRPC callback
-static void shutdownCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result) {
+static void shutdownCallback(XmlRpc::XmlRpcValue &params, XmlRpc::XmlRpcValue &result) {
   int num_params = 0;
   if (params.getType() == XmlRpc::XmlRpcValue::TypeArray) {
     num_params = params.size();

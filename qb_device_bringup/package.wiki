@@ -35,7 +35,7 @@ param {
   3.name = device_control
   3.type = string
   3.desc = The base package name prefix (without "_control") of the control node (e.g. `qb_device` if it is `qb_device_control`).
-  4.name = device_namespace
+  4.name = device_name
   4.type = string
   4.desc = The device namespace used to avoid name clashes among same-type devices. It must be the same prefix used in the description because the control node searches for structures with this prefix (e.g. joint names).
   5.name = use_waypoints
@@ -82,7 +82,7 @@ param {
   0.name = device_description
   0.type = string
   0.desc = The base package name prefix (without "_description") where robot models are stored (e.g. `qb_device` if it is `qb_device_description`).
-  1.name = device_namespace
+  1.name = device_name
   1.type = string
   1.desc = The namespace prefix of joints and links, necessary with many devices (e.g. `my_device` creates a robot model composed by `my_device_joint_...` and  `my_device_link_...` elements).
   2.name = device_urdf

@@ -79,7 +79,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   /**
    * Deactivate motors and stop the async spinner.
    */
-  virtual ~qbDeviceHW();
+  ~qbDeviceHW() override;
 
   /**
    * \return The device ID, in range [\p 1, \p 128].
@@ -104,9 +104,9 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * the current device with the parameters retrieve from the Communication Handler.
    * \param root_nh A NodeHandle in the root of the caller namespace.
    * \param robot_hw_nh A NodeHandle in the namespace from which the RobotHW should read its configuration.
-   * \returns \p true on success.
+   * \return \p true on success.
    */
-  virtual bool init(ros::NodeHandle& root_nh, ros::NodeHandle &robot_hw_nh);
+  bool init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) override;
 
   /**
    * Read actuator state from the hardware, propagate it to joint states and publish the whole device state to a
@@ -115,7 +115,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \param period The time passed since the last call to this method, i.e. the control period.
    * \sa getMeasurements(), publish()
    */
-  virtual void read(const ros::Time& time, const ros::Duration& period);
+  void read(const ros::Time &time, const ros::Duration &period) override;
 
   /**
    * Enforce joint limits for all registered joint limit interfaces, propagate joint commands to actuators, and send
@@ -124,7 +124,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \param period The time passed since the last call to this method, i.e. the control period.
    * \sa qb_device_joint_limits_interface::qbDeviceJointLimitsResources::enforceLimits(), setCommands()
    */
-  virtual void write(const ros::Time& time, const ros::Duration& period);
+  void write(const ros::Time &time, const ros::Duration &period) override;
 
  protected:
   ros::AsyncSpinner spinner_;
@@ -139,6 +139,7 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   qb_device_joint_limits_interface::qbDeviceJointLimitsResources joint_limits_;
   qb_device_transmission_interface::qbDeviceTransmissionResources transmission_;
   urdf::Model urdf_model_;
+  bool use_simulator_mode_;
 
   /**
    * Call the service to activate the device motors and wait for the response.

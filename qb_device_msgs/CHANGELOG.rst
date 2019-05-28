@@ -2,6 +2,9 @@
 Changelog for package qb_device_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.0 (2019-05-28)
+------------------
+
 2.0.3 (2018-08-09)
 ------------------
 * Update license agreement copyright

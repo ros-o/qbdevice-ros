@@ -97,7 +97,7 @@ class qbDeviceAPI {
    * \sa getParameters()
    */
   virtual std::string getInfo(comm_settings *file_descriptor, const int &id) {
-    char info[2000];
+    char info[5000];
     commGetInfo(file_descriptor, id, INFO_ALL, info);  // actually only INFO_ALL is supported
     return info;
   }
@@ -115,7 +115,7 @@ class qbDeviceAPI {
    * \sa getParameter(), getInfo()
    */
   virtual void getParameters(comm_settings *file_descriptor, const int &id, std::vector<int> &input_mode, std::vector<int> &control_mode, std::vector<int> &resolutions, std::vector<int> &limits) {
-    unsigned char parameter_buffer[2000];
+    unsigned char parameter_buffer[5000];
     commGetParamList(file_descriptor, id, 0, NULL, 0, 0, parameter_buffer);
     ros::Duration(0.001).sleep();  // unexpected behaviour with no sleep
 

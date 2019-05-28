@@ -44,8 +44,7 @@ class qbDeviceJointLimitsResources {
    * Do nothing.
    * \sa initialize()
    */
-  qbDeviceJointLimitsResources()
-      : private_node_handle_(ros::NodeHandle("~")) {}
+  qbDeviceJointLimitsResources() {}
 
   /**
    * Do nothing.
@@ -57,9 +56,14 @@ class qbDeviceJointLimitsResources {
    * Enforce limits for all managed interfaces.
    * \param period The control period.
    */
-  void enforceLimits(const ros::Duration& period) {
-    joint_position_saturation_.enforceLimits(period);
-    //TODO: add soft limits
+  void enforceLimits(const ros::Duration &period) {
+//    if (has_soft_limits_) {
+//      joint_position_soft_limits_.enforceLimits(period);
+//    }
+//    else if (has_limits_) {
+    if (has_limits_) {
+      joint_position_saturation_.enforceLimits(period);
+    }
   }
   /// \}
 
@@ -71,7 +75,7 @@ class qbDeviceJointLimitsResources {
    * \param joint_position The joint position HW interface, needed to retrieve joint handles.
    * \todo Add soft limits support.
    */
-  void initialize(qb_device_hardware_interface::qbDeviceHWResources &joints, const urdf::Model &urdf_model, hardware_interface::PositionJointInterface &joint_position) {
+  void initialize(ros::NodeHandle &robot_hw_nh, qb_device_hardware_interface::qbDeviceHWResources &joints, const urdf::Model &urdf_model, hardware_interface::PositionJointInterface &joint_position) {
     for (int i=0; i<joints.names.size(); i++) {
       // limits specified in the URDF model overwrite existing values in 'limits' and 'soft_limits'
       // limits specified in the parameter server overwrite existing values in 'limits'
@@ -79,13 +83,18 @@ class qbDeviceJointLimitsResources {
       auto urdf_joint = urdf_model.getJoint(joints.names.at(i));
       const bool urdf_has_limits = joint_limits_interface::getJointLimits(urdf_joint, joints.limits.at(i));
       const bool urdf_has_soft_limits = joint_limits_interface::getSoftJointLimits(urdf_joint, joints.soft_limits.at(i));
-      const bool rosparam_has_limits = getJointLimits(joints.names.at(i), private_node_handle_, joints.limits.at(i));
+      const bool rosparam_has_limits = getJointLimits(joints.names.at(i), robot_hw_nh, joints.limits.at(i));
+      const bool rosparam_has_soft_limits = getSoftJointLimits(joints.names.at(i), robot_hw_nh, joints.soft_limits.at(i));
+      has_limits_ = urdf_has_limits || rosparam_has_limits;
+      has_soft_limits_ = urdf_has_soft_limits || rosparam_has_soft_limits;
 
       const hardware_interface::JointHandle joint_handle(joint_position.getHandle(joints.names.at(i)));
-      if (urdf_has_soft_limits) {
+      if (has_soft_limits_) {
         //TODO: add soft limits
+//        const PositionJointSoftLimitsHandle soft_limits_handle(joint_handle, &joints.limits.at(i), joints.soft_limits.at(i));
+//        joint_position_soft_limits_.registerHandle(soft_limits_handle);
       }
-      else if (urdf_has_limits || rosparam_has_limits) {
+      else if (has_limits_) {
         const PositionJointSaturationHandle saturation_handle(joint_handle, &joints.limits.at(i));
         joint_position_saturation_.registerHandle(saturation_handle);
       }
@@ -93,7 +102,8 @@ class qbDeviceJointLimitsResources {
   }
 
  private:
-  ros::NodeHandle private_node_handle_;
+  bool has_limits_;
+  bool has_soft_limits_;
   // the position limits interface takes care of the position and velocity limits, but not of the effort ones; however
   // the current is automatically saturated by low level control on the device. The custom interface is aimed to manage
   // the shaft limits which depends on the variable stiffness preset, i.e. they are not a priori fixed.

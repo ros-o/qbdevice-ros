@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_hardware_interface VERSION 2.0.3 LANGUAGES CXX)
+project(qb_device_hardware_interface VERSION 2.1.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -35,6 +35,11 @@ catkin_package(
 # Exported libraries
 add_library(${PROJECT_NAME}
   src/qb_device_hardware_interface.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}
+  PUBLIC
+    ${catkin_LIBRARIES}
 )
 
 add_dependencies(${PROJECT_NAME}
@@ -80,6 +85,8 @@ install(
 # Tests
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
+
+#TODO: catkin_add_gmock: http://docs.ros.org/melodic/api/catkin/html/dev_guide/generated_cmake_api.html#catkin-add-gmock
 
 #  # explicit gmock build FIXME: outside sourcing
 #  include_directories(/usr/include/gmock /usr/src/gmock)

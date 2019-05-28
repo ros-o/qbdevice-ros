@@ -12,6 +12,7 @@
   <arg name="device_type" doc="Fake arg: ros_comm#889"/>
   <arg name="get_currents" doc="Fake arg: ros_comm#889"/>
   <arg name="get_distinct_packages" doc="Fake arg: ros_comm#889"/>
+  <arg name="use_simulator_mode" doc="Fake arg: ros_comm#889"/>
 
 
   <!-- device info -->
@@ -25,6 +26,7 @@
   <arg name="source_list" default="[$(arg device_name)/joint_states]" doc="The joint_states source list for the joint_state_publisher."/>
   <arg name="use_controller_gui" default="false" doc="Choose whether or not to use the controller GUI."/>
   <arg name="use_rviz" default="true" doc="Choose whether or not to use rviz."/>
+  <arg name="use_interactive_markers" default="$(arg use_rviz)" doc="Choose whether or not to use interactive markers on rviz."/>
   <arg name="use_waypoints" default="false" doc="Choose whether or not to use the waypoint references."/>
 
   <group ns="$(arg robot_namespace)">
@@ -42,6 +44,7 @@
       <arg name="robot_name" value="$(arg robot_name)"/>
       <arg name="robot_package" value="$(arg robot_package)"/>
       <arg name="use_controller_gui" value="$(arg use_controller_gui)"/>
+      <arg name="use_interactive_markers" value="$(arg use_interactive_markers)"/>
       <arg name="use_waypoints" value="$(arg use_waypoints)"/>
     </include>
 

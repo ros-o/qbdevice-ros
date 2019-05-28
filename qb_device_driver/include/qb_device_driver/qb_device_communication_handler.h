@@ -77,6 +77,11 @@ class qbDeviceCommunicationHandler {
   virtual ~qbDeviceCommunicationHandler();
 
  protected:
+  ros::NodeHandle node_handle_;
+  std::map<std::string, std::unique_ptr<std::mutex>> serial_protectors_;  // only callbacks must lock the serial resources
+  std::map<std::string, comm_settings> file_descriptors_;
+  std::map<int, std::string> connected_devices_;
+
   /**
    * Activate the motors of the given device. Do nothing if the device is not connected in the Communication Handler.
    * \param id The ID of the device to be activated, in range [\p 1, \p 128].
@@ -257,7 +262,7 @@ class qbDeviceCommunicationHandler {
    * \return \p true if the call succeed (actually \p response.success may be false).
    * \sa getSerialPortsAndDevices()
    */
-  bool initializeCallback(qb_device_srvs::InitializeDeviceRequest &request, qb_device_srvs::InitializeDeviceResponse &response);
+  virtual bool initializeCallback(qb_device_srvs::InitializeDeviceRequest &request, qb_device_srvs::InitializeDeviceResponse &response);
 
   /**
    * Open the serial communication on the given serial port. On success, store the opened file descriptor in the
@@ -322,7 +327,6 @@ class qbDeviceCommunicationHandler {
 
  private:
   ros::AsyncSpinner spinner_;
-  ros::NodeHandle node_handle_;
   ros::ServiceServer activate_motors_;
   ros::ServiceServer deactivate_motors_;
   ros::ServiceServer get_info_;
@@ -331,11 +335,6 @@ class qbDeviceCommunicationHandler {
   ros::ServiceServer set_commands_;
   ros::ServiceServer set_pid_;
   qb_device_driver::qbDeviceAPIPtr device_api_;
-  bool set_commands_async;
-
-  std::map<std::string, std::unique_ptr<std::mutex>> serial_protectors_;  // only callbacks must lock the serial resources
-  std::map<std::string, comm_settings> file_descriptors_;
-  std::map<int, std::string> connected_devices_;
 
   /**
    * Activate (or deactivate, according to the given command) the motors of the given device. Do nothing if the device

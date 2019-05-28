@@ -201,7 +201,7 @@ class qbDeviceHWInterfaces {
    * \param robot The RobotHW pointer, necessary to register the interfaces.
    * \param joints The device HW joints Resource.
    */
-  void initialize(hardware_interface::RobotHW* robot, qbDeviceHWResources &joints) {
+  void initialize(hardware_interface::RobotHW *robot, qbDeviceHWResources &joints) {
     for (int i=0; i<joints.names.size(); i++) {
       hardware_interface::JointStateHandle joint_state_handle(joints.names.at(i), &joints.positions.at(i), &joints.velocities.at(i), &joints.efforts.at(i));
       joint_state.registerHandle(joint_state_handle);

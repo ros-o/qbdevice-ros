@@ -56,8 +56,8 @@
 *               via a serial port.
 *
 *               Those APIs can be compiled for Unix systems like Linux and
-*               Mac OS X and even for Windows. Refer to https://github.com/qbrobotics/qbAPI/blob/master/README.md
-*               for detailed instructions.
+*               Mac OS X and even for Windows.
+*               Refer to the provided README for detailed instructions.
 *
 * \copyright    (C)  qbrobotics. All rights reserved.
 */

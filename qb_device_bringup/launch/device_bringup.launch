@@ -6,6 +6,7 @@
   <arg name="robot_package" doc="Fake arg: ros_comm#889"/>
   <arg name="use_waypoints" doc="Fake arg: ros_comm#889"/>
   <arg name="use_rviz" doc="Fake arg: ros_comm#889"/>
+  <arg name="use_interactive_markers" default="Fake arg: ros_comm#889"/>
   <arg name="source_list" doc="Fake arg: ros_comm#889"/>
   <arg name="control_duration" doc="Fake arg: ros_comm#889"/>
   <arg name="robot_hardware" doc="Fake arg: ros_comm#889"/>
@@ -25,6 +26,10 @@
   <!-- initialization settings -->
   <arg name="activate_on_initialization" default="false" doc="Choose whether or not to activate the motors on node startup."/>
   <arg name="rescan_on_initialization" default="false" doc="Choose whether or not to rescan the serial ports on node startup."/>
+  <arg name="use_simulator_mode" default="false" doc="Choose whether or not to use previous command values instead of device measurements."/>
+  <!-- optional joint limits -->
+  <arg name="has_delta_motor_position_limits" default="false" doc="Choose whether or not to use custom joint limits, e.g. for delta motors."/>
+  <arg name="has_gripper_position_limits" default="false" doc="Choose whether or not to use custom joint limits, e.g. for delta motors."/>
   <!-- robot settings -->
   <arg name="robot_name" doc="The unique robot name."/>
   <arg name="robot_namespace" default="$(arg robot_name)" doc="The unique robot namespace."/>
@@ -55,6 +60,28 @@
       <!-- initialization settings -->
       <param name="activate_on_initialization" type="bool" value="$(arg activate_on_initialization)"/>
       <param name="rescan_on_initialization" type="bool" value="$(arg rescan_on_initialization)"/>
+      <param name="use_simulator_mode" type="bool" value="$(arg use_simulator_mode)"/>
+
+      <!-- optional joint limits -->
+      <!-- FIXME: cannot parse directly from yaml with substitution args in kinetic 28-03-2018 (wait for merge ros_comm#1354: https://github.com/ros/ros_comm/pull/1354) -->
+      <group if="$(arg has_delta_motor_position_limits)">
+        <rosparam subst_value="true">  <!--FIXME: hardcoded-->
+          joint_limits:
+            $(arg device_name)_shaft_joint:
+              has_position_limits: true
+              min_position: -1.5
+              max_position: 1.0
+        </rosparam>
+      </group>
+      <group if="$(arg has_gripper_position_limits)">
+        <rosparam subst_value="true">  <!--FIXME: hardcoded-->
+          joint_limits:
+            $(arg device_name)_shaft_joint:
+              has_position_limits: true
+              min_position: 0.0
+              max_position: 1.4
+        </rosparam>
+      </group>
     </group>
   </group>
 </launch>

@@ -135,7 +135,7 @@ class qbDeviceControl {
    * \return The filled \p trajectory_msgs::JointTrajectory ROS message.
    * \sa move(const trajectory_msgs::JointTrajectory &, const std::string &), parseVector(), xmlCast()
    */
-  trajectory_msgs::JointTrajectory getWaypointTrajectory(ros::NodeHandle node_handle, const std::string &controller);
+  trajectory_msgs::JointTrajectory getWaypointTrajectory(ros::NodeHandle &node_handle, const std::string &controller);
 
   /**
    * Wait until the action is completed or the given timeout is reached.
@@ -305,7 +305,7 @@ class qbDeviceControl {
    * \param time The current time.
    * \param period The time passed since the last call to this method, i.e. the control period.
    */
-  void update(const ros::WallTime& time, const ros::WallDuration& period);
+  void update(const ros::WallTime &time, const ros::WallDuration &period);
 
   /**
    * Cast an \p XmlRpcValue from \p TypeDouble, \p TypeInt or \p TypeBoolean to the specified template type. This is

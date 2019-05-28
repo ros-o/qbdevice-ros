@@ -136,7 +136,7 @@ int qbDeviceHW::getMeasurements(std::vector<double> &positions, std::vector<doub
   return -1;
 }
 
-bool qbDeviceHW::init(ros::NodeHandle& root_nh, ros::NodeHandle &robot_hw_nh) {
+bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
   node_handle_ = robot_hw_nh;
   if (!robot_hw_nh.getParam("device_name", device_.name)) {
     ROS_ERROR_STREAM_NAMED("device_hw", "[DeviceHW] cannot retrieve 'device_name' from the Parameter Service [" << robot_hw_nh.getNamespace() << "].");
@@ -157,8 +157,10 @@ bool qbDeviceHW::init(ros::NodeHandle& root_nh, ros::NodeHandle &robot_hw_nh) {
   joints_.setJoints(robot_hw_nh.param<std::vector<std::string>>("joints", addNamespacePrefix(joints_.names)));
 
   interfaces_.initialize(this, joints_);
-  joint_limits_.initialize(joints_, urdf_model_, interfaces_.joint_position);
+  joint_limits_.initialize(robot_hw_nh, joints_, urdf_model_, interfaces_.joint_position);
   transmission_.initialize(robot_hw_nh.param<std::string>("transmission", "transmission"), actuators_, joints_);
+
+  use_simulator_mode_ = robot_hw_nh.param<bool>("use_simulator_mode", false);
 
   waitForInitialization();
   ROS_INFO_STREAM(getInfo());
@@ -170,7 +172,7 @@ int qbDeviceHW::initializeDevice() {
   if (services_.at("initialize_device")) {
     qb_device_srvs::InitializeDevice srv;
     srv.request.id = device_.id;
-    srv.request.activate = node_handle_.param<bool>("activate_on_initialization", true);
+    srv.request.activate = node_handle_.param<bool>("activate_on_initialization", false) && !use_simulator_mode_;
     srv.request.rescan = node_handle_.param<bool>("rescan_on_initialization", false);
     int max_repeats = node_handle_.param<int>("max_repeats", 3);
     srv.request.max_repeats = max_repeats;
@@ -250,7 +252,7 @@ void qbDeviceHW::publish() {
   state_publisher_.publish(msg);
 }
 
-void qbDeviceHW::read(const ros::Time& time, const ros::Duration& period) {
+void qbDeviceHW::read(const ros::Time &time, const ros::Duration &period) {
   // store old actuator positions
   std::vector<double> actuator_position_old(actuators_.positions);
   // read actuator state from the hardware
@@ -260,6 +262,10 @@ void qbDeviceHW::read(const ros::Time& time, const ros::Duration& period) {
     for (int i = 0; i < actuators_.names.size(); i++) {
       actuators_.velocities.at(i) = (actuators_.positions.at(i) - actuator_position_old.at(i)) / period.toSec();
     }
+  }
+
+  if (use_simulator_mode_) {
+    actuators_.positions = actuators_.commands;
   }
 
   // no needs to enforce joint limits: they come from the real device
@@ -317,7 +323,7 @@ void qbDeviceHW::waitForServices() {
   ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] is connected to all the services advertise by [CommunicationHandler].");
 }
 
-void qbDeviceHW::write(const ros::Time& time, const ros::Duration& period) {
+void qbDeviceHW::write(const ros::Time &time, const ros::Duration &period) {
   // enforce joint limits for all registered interfaces
   joint_limits_.enforceLimits(period);
 

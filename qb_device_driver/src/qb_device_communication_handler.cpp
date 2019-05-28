@@ -106,7 +106,7 @@ int qbDeviceCommunicationHandler::close(const std::string &serial_port) {
 
   for (auto const &device : connected_devices_) {
     if (device.second == serial_port) {
-      deactivate(device.first, 1);
+      deactivate(device.first, 3);
       connected_devices_.erase(device.first);
     }
   }

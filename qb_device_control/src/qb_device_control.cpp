@@ -44,18 +44,20 @@ qbDeviceControl::qbDeviceControl()
     // combined_robot_hw properly initialized (i.e. robot_hardware exists)
     node_handle_.getParam("robot_hardware", device_names_);
 
-    initActionClients();
+    if (node_handle_.param("robot_activate_control", true)) {
+      initActionClients();
 
-    if (node_handle_.param("use_waypoints", false)) {
-      parseWaypoints();
+      if (node_handle_.param("use_waypoints", false)) {
+        parseWaypoints();
+      }
+
+      get_measurements_client_ = node_handle_.serviceClient<qb_device_srvs::GetMeasurements>("/communication_handler/get_measurements", true);
+      set_commands_client_ = node_handle_.serviceClient<qb_device_srvs::SetCommands>("/communication_handler/set_commands", true);
+      set_pid_client_ = node_handle_.serviceClient<qb_device_srvs::SetPID>("/communication_handler/set_pid", true);
+      get_async_measurements_server_ = node_handle_.advertiseService("get_async_measurements", &qbDeviceControl::getAsyncMeasurementsCallback, this);
+      set_async_commands_server_ = node_handle_.advertiseService("set_async_commands", &qbDeviceControl::setAsyncCommandsCallback, this);
+      set_async_pid_server_ = node_handle_.advertiseService("set_async_pid", &qbDeviceControl::setAsyncPIDCallback, this);
     }
-
-    get_measurements_client_ = node_handle_.serviceClient<qb_device_srvs::GetMeasurements>("/communication_handler/get_measurements", true);
-    set_commands_client_ = node_handle_.serviceClient<qb_device_srvs::SetCommands>("/communication_handler/set_commands", true);
-    set_pid_client_ = node_handle_.serviceClient<qb_device_srvs::SetPID>("/communication_handler/set_pid", true);
-    get_async_measurements_server_ = node_handle_.advertiseService("get_async_measurements", &qbDeviceControl::getAsyncMeasurementsCallback, this);
-    set_async_commands_server_ = node_handle_.advertiseService("set_async_commands", &qbDeviceControl::setAsyncCommandsCallback, this);
-    set_async_pid_server_ = node_handle_.advertiseService("set_async_pid", &qbDeviceControl::setAsyncPIDCallback, this);
 
     frequency_publisher_ = node_handle_.advertise<std_msgs::Int32>("frequency", 1);
     control_setup_timer_ = node_handle_.createWallTimer(control_duration_, &qbDeviceControl::controlSetupCallback, this, true);  // oneshot
@@ -209,7 +211,7 @@ trajectory_msgs::JointTrajectory qbDeviceControl::getCustomTrajectory(const std:
   return joint_trajectory;
 }
 
-trajectory_msgs::JointTrajectory qbDeviceControl::getWaypointTrajectory(ros::NodeHandle node_handle, const std::string &controller) {
+trajectory_msgs::JointTrajectory qbDeviceControl::getWaypointTrajectory(ros::NodeHandle &node_handle, const std::string &controller) {
   XmlRpc::XmlRpcValue waypoints;
   if (!node_handle.getParam("waypoints", waypoints)) {
     ROS_ERROR_STREAM_NAMED("robot_control", "No waypoints specified in the Parameter Server under [" << node_handle.getNamespace() << "/waypoints].");
@@ -328,7 +330,7 @@ bool qbDeviceControl::setAsyncPIDCallback(qb_device_srvs::SetPIDRequest &request
   return false;
 }
 
-void qbDeviceControl::update(const ros::WallTime& time, const ros::WallDuration& period) {
+void qbDeviceControl::update(const ros::WallTime &time, const ros::WallDuration &period) {
   // read the state from the hardware
   devices_.read(ros::Time(time.toSec()), ros::Duration(period.toSec()));
 
