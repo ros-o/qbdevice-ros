@@ -2,6 +2,9 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.1 (2019-10-07)
+------------------
+
 2.1.0 (2019-05-28)
 ------------------
 * Improve inheritance for other devices

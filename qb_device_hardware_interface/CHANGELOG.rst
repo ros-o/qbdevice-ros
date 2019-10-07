@@ -2,6 +2,10 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.1.1 (2019-10-07)
+------------------
+* Fix initial command and velocity limit for qbmoves
+
 2.1.0 (2019-05-28)
 ------------------
 * Add comments for future changes

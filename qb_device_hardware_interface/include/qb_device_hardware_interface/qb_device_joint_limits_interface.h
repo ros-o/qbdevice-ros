@@ -86,7 +86,11 @@ class PositionJointSaturationHandle {
   /**
    * Reset the interface state.
    */
-  void reset() { command_old_ = joint_handle_.getPosition(); }
+  void reset() {
+    const double command = joint_handle_.getPosition();
+    joint_handle_.setCommand(command);
+    command_old_ = command;
+  }
 
  private:
   hardware_interface::JointHandle joint_handle_;
