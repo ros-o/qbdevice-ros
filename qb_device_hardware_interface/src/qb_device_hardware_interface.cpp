@@ -123,7 +123,9 @@ int qbDeviceHW::getCommands(std::vector<double> &commands) {
   transmission_.actuator_to_joint_state.propagate();
 
   commands.at(0) = actuators_.commands.at(0) * joints_.positions.at(0)/actuators_.positions.at(0);  // commands are not converted inside the transmission
-  commands.at(1) = actuators_.commands.at(1) * joints_.positions.at(1)/actuators_.positions.at(1);  // commands are not converted inside the transmission
+  if (actuators_.names.size() > 1) {  // for qb SoftHand is ok to be 0
+    commands.at(1) = actuators_.commands.at(1) * joints_.positions.at(1) / actuators_.positions.at(1);  // commands are not converted inside the transmission
+  }
 
   return 0;
 }
@@ -229,9 +231,13 @@ bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
   }
   // actual joint commands (coming from actual device references) are required while initializing the joint limit interface (to set the starting old command for enforceLimits())
   joints_.commands.at(0) = commands.at(0);
-  joints_.commands.at(1) = commands.at(1);
-  joints_.commands.at(2) = (commands.at(0) + commands.at(1))/2;
-  joints_.commands.at(3) = std::abs(commands.at(0) - commands.at(1))/2;
+  if (joints_.commands.size() > 1) { //FIXME: try to implement me in the device specific package
+    joints_.commands.at(1) = commands.at(1);
+  }
+  if (joints_.commands.size() == 4) {  //FIXME: try to implement me in the device specific package
+    joints_.commands.at(2) = (commands.at(0) + commands.at(1)) / 2;
+    joints_.commands.at(3) = std::abs(commands.at(0) - commands.at(1)) / 2;
+  }
   joint_limits_.initialize(robot_hw_nh, joints_, urdf_model_, interfaces_.joint_position);
 
   controller_first_command_publisher_ = node_handle_.advertise<trajectory_msgs::JointTrajectory>(default_controller + "/command", 1);
@@ -241,8 +247,15 @@ bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
   point.velocities.resize(commands.size());
   point.accelerations.resize(commands.size());
   point.effort.resize(commands.size());
-  point.positions.at(0) = joints_.commands.at(2);
-  point.positions.at(1) = joints_.commands.at(3);
+  if (joints_.commands.size() == 4) {  //FIXME: try to implement me in the device specific package
+    point.positions.at(0) = joints_.commands.at(2);
+    point.positions.at(1) = joints_.commands.at(3);
+  } else if (joints_.commands.size() == 2){ //FIXME: try to implement me in the device specific package
+    point.positions.at(0) = joints_.commands.at(0);
+    point.positions.at(1) = joints_.commands.at(1);
+  } else {
+    point.positions.at(0) = joints_.commands.at(0);
+  }
   point.time_from_start = ros::Duration(0.1);
   controller_first_point_trajectory_.points.push_back(point);
   controller_first_point_trajectory_.joint_names = default_controller_joints;

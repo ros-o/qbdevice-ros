@@ -2,6 +2,9 @@
 Changelog for package qb_device_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-08-27)
+------------------
+
 2.2.0 (2021-08-27)
 ------------------
 * Created message published in a topic by communication_handler that contains the connection status of each device.

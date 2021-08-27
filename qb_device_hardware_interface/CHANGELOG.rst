@@ -2,6 +2,11 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-08-27)
+------------------
+* Fix qbhand movement at startup
+* Fix qb SoftHands startup
+
 2.2.0 (2021-08-27)
 ------------------
 * Replaced error stream with throttle

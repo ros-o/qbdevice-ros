@@ -2,6 +2,9 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-08-27)
+------------------
+
 2.2.0 (2021-08-27)
 ------------------
 * Fix wait to let the trajectories go steady
