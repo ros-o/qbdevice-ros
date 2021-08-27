@@ -2,6 +2,16 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Fix wait to let the trajectories go steady
+* Add controller startup sync to avoid hardcoded wait
+* Fixed delay for RPi4
+* Refactor control structures initialization
+* Fix control callback first call
+* Refactor Gazebo plugin to prepare for SoftHand simulation
+* Update license
+
 2.1.1 (2019-10-07)
 ------------------
 

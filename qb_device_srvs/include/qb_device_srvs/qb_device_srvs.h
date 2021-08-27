@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -34,5 +34,6 @@
 #include <qb_device_srvs/SetCommands.h>
 #include <qb_device_srvs/SetPID.h>
 #include <qb_device_srvs/Trigger.h>
+#include <qb_device_srvs/SetControlMode.h>
 
 #endif //QB_DEVICE_SRVS_H

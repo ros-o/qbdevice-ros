@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -33,6 +33,8 @@
 
 // ROS libraries
 #include <ros/ros.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/robot_hw.h>
@@ -139,7 +141,13 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   qb_device_joint_limits_interface::qbDeviceJointLimitsResources joint_limits_;
   qb_device_transmission_interface::qbDeviceTransmissionResources transmission_;
   urdf::Model urdf_model_;
-  bool use_simulator_mode_;
+  bool use_fake_measurement_mode_;
+
+  ros::Publisher controller_startup_sync_publisher_;
+  ros::Publisher controller_first_command_publisher_;
+  ros::Subscriber controller_state_subscriber_;
+  trajectory_msgs::JointTrajectory controller_first_point_trajectory_;
+  int controller_state_counter_ = 0;
 
   /**
    * Call the service to activate the device motors and wait for the response.
@@ -149,11 +157,26 @@ class qbDeviceHW : public hardware_interface::RobotHW {
   virtual int activateMotors();
 
   /**
+   * Send the first command state to the controller when the controller is on.
+   */
+  void controllerStatusCallback(const control_msgs::JointTrajectoryControllerState &status_msg);
+
+  /**
    * Call the service to deactivate the device motors and wait for the response.
    * \return \p 0 on success.
    * \sa activateMotors()
    */
   virtual int deactivateMotors();
+
+  /**
+   * Call the service to retrieve device reference commands and wait for the response.
+   * \param[out] commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only
+   * the first element is filled while the other remains always \p 0; in the case of a \em qbmove both the elements
+   * contain relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
+   * \return \p 0 on success.
+   * \sa setCommands()
+   */
+  int getCommands(std::vector<double> &commands);
 
   /**
    * Call the service to retrieve the printable configuration setup of the device and wait for the response.
@@ -176,6 +199,25 @@ class qbDeviceHW : public hardware_interface::RobotHW {
    * \sa setCommands()
    */
   virtual int getMeasurements(std::vector<double> &positions, std::vector<double> &currents, ros::Time &stamp);
+
+  /**
+   * Call the service to retrieve device measurements (positions, currents and commands) and wait for the response.
+   * When data is received, correct the positions direction with the \p motor_axis_direction.
+   * \param[out] positions The device position vector, expressed in \em ticks: if the device is a \em qbhand only
+   * the first element is filled while the others remain always \p 0; in the case of a \em qbmove all the elements
+   * contain relevant data, i.e. the positions respectively of \p motor_1, \p motor_2 and \p motor_shaft (which is
+   * not directly actuated).
+   * \param[out] currents The two-element device motor current vector, expressed in \em mA: if the device is a \em
+   * qbhand only the first element is filled while the other remains always \p 0; in the case of a \em qbmove both
+   * the elements contain relevant data, i.e. the currents respectively of \p motor_1 and \p motor_2.
+   * \param[out] commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only
+   * the first element is filled while the other remains always \p 0; in the case of a \em qbmove both the elements
+   * contain relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
+   * \param[out] stamp The time stamp of the retrieved measurements (it is set by the process which does the read).
+   * \return \p 0 on success.
+   * \sa setCommands()
+   */
+  virtual int getMeasurements(std::vector<double> &positions, std::vector<double> &currents, std::vector<double> &commands, ros::Time &stamp);
 
   /**
    * Call the service to initialize the device with parameters from the Communication Handler and wait for the response.

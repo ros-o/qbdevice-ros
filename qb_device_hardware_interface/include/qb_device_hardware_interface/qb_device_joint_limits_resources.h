@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *  
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *  
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -95,7 +95,7 @@ class qbDeviceJointLimitsResources {
 //        joint_position_soft_limits_.registerHandle(soft_limits_handle);
       }
       else if (has_limits_) {
-        const PositionJointSaturationHandle saturation_handle(joint_handle, &joints.limits.at(i));
+        const PositionJointSaturationHandle saturation_handle(joint_handle, &joints.limits.at(i), joints.commands.at(i));
         joint_position_saturation_.registerHandle(saturation_handle);
       }
     }

@@ -2,6 +2,13 @@
 Changelog for package qb_device_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Created message published in a topic by communication_handler that contains the connection status of each device.
+* Fix cmake resource installation
+* Update license
+* Added a parameter to use the device with or without other robots. Added some motor limits when the qbmoves are used in kinematic configs.
+
 2.1.1 (2019-10-07)
 ------------------
 

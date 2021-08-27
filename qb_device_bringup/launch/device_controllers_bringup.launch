@@ -1,88 +1,51 @@
 <launch>
   <arg name="device_name" doc="The unique device name used in the yaml controller configurations."/>
-  <arg name="device_type" doc="The type of the device [qbhand, qbmove, ...]."/>
+  <arg name="device_type" doc="The type of the device [qbhand, qbmove, qbclaw, ...]."/>
+  <arg name="robot_namespace" doc="The unique robot namespace."/>
 
-  <!-- load controller configurations -->
-  <!-- FIXME: cannot parse directly from yaml with substitution args in kinetic 28-03-2018 (wait for merge ros_comm#1354: https://github.com/ros/ros_comm/pull/1354) -->
-  <!--<rosparam file="$(eval find(package_prefix + '_control') + '/config/' + device_type + '_controllers.yaml')" command="load" subst_value="true"/>-->  <!-- FIXME: package_prefix from device_type -->
-  <group if="$(eval device_type == 'qbhand')">
-    <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
-                                          $(arg device_name)_synergy_trajectory_controller"/>
-    <rosparam subst_value="true">  <!--FIXME: hardcoded-->
-      $(arg device_name)_joint_state_controller:
-        type: joint_state_controller/JointStateController
-        publish_rate: 100
+  <group ns="control">
+    <!-- load controller configurations -->
+    <group if="$(eval device_type == 'qbhand')">
+      <rosparam file="$(eval find('qb_hand_control') + '/config/qbhand_controllers.yaml')" command="load" subst_value="true"/>
 
-      $(arg device_name)_synergy_trajectory_controller:
-        type: position_controllers/JointTrajectoryController
-        joints:
-          - $(arg device_name)_synergy_joint
-        constraints:  # fake values due to the adaptability
-          goal_time: 10.0
-          stopped_velocity_tolerance: 10.0
-          $(arg device_name)_synergy_joint:
-            trajectory: 10.0
-            goal: 10.0
-        state_publish_rate: 100
-        action_monitor_rate: 120
-        stop_trajectory_duration: 0
-    </rosparam>
+      <!-- spawn the controllers in current namespace -->
+      <include file="$(find qb_device_control)/launch/spawner_template.launch">
+        <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
+                                              $(arg device_name)_synergy_trajectory_controller"/>
+      </include>
+    </group>
+    <group if="$(eval device_type == 'qbhand2m')">
+      <rosparam file="$(eval find('qb_hand_control') + '/config/qbhand2m_controllers.yaml')" command="load" subst_value="true"/>
 
-    <!-- spawn the controllers in current namespace -->
-    <include file="$(find qb_device_control)/launch/spawner_template.launch">
-      <arg name="device_controllers" value="$(arg device_controllers)"/>
-    </include>
-  </group>
-  <group if="$(eval device_type == 'qbmove')">
-    <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
-                                          $(arg device_name)_position_and_preset_trajectory_controller"/>
+      <!-- spawn the controllers in current namespace -->
+      <include file="$(find qb_device_control)/launch/spawner_template.launch">
+        <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
+                                              $(arg device_name)_synergies_trajectory_controller"/>
                                           <!--$(arg device_name)_motor_positions_trajectory_controller-->
-    <rosparam subst_value="true">  <!--FIXME: hardcoded-->
-      $(arg device_name)_joint_state_controller:
-        type: joint_state_controller/JointStateController
-        publish_rate: 100
+      </include>
+    </group>
+    <group if="$(eval device_type == 'qbmove' or device_type =='qbclaw')">
+      <rosparam file="$(eval find('qb_move_control') + '/config/qbmove_controllers.yaml')" command="load" subst_value="true"/>
 
-      $(arg device_name)_position_and_preset_trajectory_controller:
-        type: position_controllers/JointTrajectoryController
-        joints:
-          - $(arg device_name)_shaft_joint
-          - $(arg device_name)_stiffness_preset_virtual_joint
-        constraints:  # fake values due to the adaptability
-          goal_time: 10.0
-          stopped_velocity_tolerance: 10.0
-          $(arg device_name)_shaft_joint:
-            trajectory: 10.0
-            goal: 10.0
-          $(arg device_name)_stiffness_preset_virtual_joint:
-            trajectory: 10.0
-            goal: 10.0
-        state_publish_rate: 100
-        action_monitor_rate: 120
-        stop_trajectory_duration: 0
+      <!-- spawn the controllers in current namespace -->
+      <include file="$(find qb_device_control)/launch/spawner_template.launch">
+        <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
+                                              $(arg device_name)_position_and_preset_trajectory_controller"/>
+                                          <!--$(arg device_name)_motor_positions_trajectory_controller-->
+      </include>
+    </group>
+  </group>
 
-      <!--FIXME: need an extended checkForConflict method to make these two controllers mutually exclusive -->
-      <!--$(arg device_name)_motor_positions_trajectory_controller:-->
-        <!--type: position_controllers/JointTrajectoryController-->
-        <!--joints:-->
-          <!-- - $(arg device_name)_motor_1_joint-->
-          <!-- - $(arg device_name)_motor_2_joint-->
-        <!--constraints:  # fake values due to the adaptability-->
-          <!--goal_time: 10.0-->
-          <!--stopped_velocity_tolerance: 10.0-->
-          <!--$(arg device_name)_motor_1_joint:-->
-            <!--trajectory: 10.0-->
-            <!--goal: 10.0-->
-          <!--$(arg device_name)_motor_2_joint:-->
-            <!--trajectory: 10.0-->
-            <!--goal: 10.0-->
-        <!--state_publish_rate: 100-->
-        <!--action_monitor_rate: 120-->
-        <!--stop_trajectory_duration: 0-->
-    </rosparam>
-
-    <!-- spawn the controllers in current namespace -->
-    <include file="$(find qb_device_control)/launch/spawner_template.launch">
-      <arg name="device_controllers" value="$(arg device_controllers)"/>
-    </include>
+  <!-- load controller parameters to be retrieved by each device hardware interface for references initialization -->
+  <group ns="$(arg device_name)">
+    <group if="$(eval device_type == 'qbhand')">
+      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_synergy_trajectory_controller"/>
+    </group>
+    <group if="$(eval device_type == 'qbhand2m')">
+      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_synergies_trajectory_controller"/>
+    </group>
+    <group if="$(eval device_type == 'qbmove' or device_type =='qbclaw')">
+      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_position_and_preset_trajectory_controller"/>
+    </group>
   </group>
 </launch>

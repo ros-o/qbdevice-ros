@@ -2,6 +2,22 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Fixed reconnection on killing nodes.
+* Refactor control structures initialization
+* Add Gazebo SoftHand and SoftHand 2 Motors plugin skeletons
+* Refactor Gazebo plugin to prepare for SoftHand simulation
+* Add hardware interface for SoftHand 2 Motors
+* Set a better name for fake joint simulation variables
+* Added the control mode switch service. Added a parameter to choose to use .yaml limits or firmware ones.
+* Add Gazebo support for qbmove devices
+* Fix hardcoded params in launch files since ros_comm#1354 has been backported to kinetic
+* Fix 'pass_all_args' workaround since ros_comm#889 has been backported to kinetic
+* Added compatibility to qb SoftClaw in .launch files
+* Update arg description
+* Added a parameter to use the device with or without other robots. Added some motor limits when the qbmoves are used in kinematic configs.
+
 2.1.1 (2019-10-07)
 ------------------
 

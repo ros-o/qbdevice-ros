@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_msgs VERSION 2.1.1 LANGUAGES CXX)
+project(qb_device_msgs VERSION 2.2.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -15,6 +15,8 @@ add_message_files(
     ResourceData.msg
     State.msg
     StateStamped.msg
+    DeviceConnectionInfo.msg
+    ConnectionState.msg
 )
 
 generate_messages(
@@ -40,4 +42,11 @@ install(
     include/${PROJECT_NAME}/
   DESTINATION
     ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(
+  DIRECTORY
+    msg/
+  DESTINATION
+    ${CATKIN_PACKAGE_SHARE_DESTINATION}/msg
 )

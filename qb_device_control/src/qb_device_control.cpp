@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -59,6 +59,9 @@ qbDeviceControl::qbDeviceControl()
       set_async_pid_server_ = node_handle_.advertiseService("set_async_pid", &qbDeviceControl::setAsyncPIDCallback, this);
     }
 
+    controller_startup_sync_counter_ = 0;
+    controller_startup_sync_subscriber_ = node_handle_.subscribe("control/startup_sync", 1, &qbDeviceControl::controllerStartupSyncCallback, this);
+
     frequency_publisher_ = node_handle_.advertise<std_msgs::Int32>("frequency", 1);
     control_setup_timer_ = node_handle_.createWallTimer(control_duration_, &qbDeviceControl::controlSetupCallback, this, true);  // oneshot
   }
@@ -97,6 +100,10 @@ void qbDeviceControl::actionFeedbackCallback(const control_msgs::FollowJointTraj
 }
 
 void qbDeviceControl::controlCallback(const ros::WallTimerEvent &timer_event) {
+  if (timer_event.last_real.toSec() == 0.0 && timer_event.last_expected.toSec() != 0.0) {
+    return;  // discard first iteration that has wrong timer values
+  }
+
   std::lock_guard<std::mutex> motor_lock(sync_protector_);  // automatically released at the end of the callback
   update(timer_event.current_real, timer_event.current_real - timer_event.last_real);
   counter_++;
@@ -108,6 +115,26 @@ void qbDeviceControl::controlSetupCallback(const ros::WallTimerEvent &timer_even
   control_setup_timer_.stop();
   counter_ = 0;
 
+  auto start = ros::Time::now();
+  while ((ros::Time::now() - start).toSec() < 10.0) {  // ten-second timeout
+    if (controller_startup_sync_counter_ == device_names_.size()) {  // all sync messages received
+      break;
+    }
+    devices_.read(ros::Time::now(), ros::Duration(control_duration_.toSec()));
+    controller_manager_.update(ros::Time::now(), ros::Duration(control_duration_.toSec()));
+    control_duration_.sleep();
+  }
+  if ((ros::Time::now() - start).toSec() >= 10.0) {
+    ROS_ERROR_STREAM_NAMED("robot_control", "Controllers startup sync timeout expired.");
+    return;
+  }
+  start = ros::Time::now();
+  while ((ros::Time::now() - start).toSec() < 0.5) {  // active wait to let the controllers go to the steady state
+    devices_.read(ros::Time::now(), ros::Duration(control_duration_.toSec()));
+    controller_manager_.update(ros::Time::now(), ros::Duration(control_duration_.toSec()));  // WARN: needs to be updated to let the trajectory become steady!
+    control_duration_.sleep();
+  }
+
   control_timer_ = node_handle_control_.createWallTimer(control_duration_, &qbDeviceControl::controlCallback, this);
   frequency_timer_ = node_handle_.createWallTimer(ros::WallDuration(1), &qbDeviceControl::frequencyCallback, this);
 
@@ -115,6 +142,16 @@ void qbDeviceControl::controlSetupCallback(const ros::WallTimerEvent &timer_even
   if (!joint_trajectories_.empty()) {
     ros::Duration(0.5).sleep();
     move();
+  }
+}
+
+void qbDeviceControl::controllerStartupSyncCallback(const std_msgs::Header &msg) {
+  for (auto const &device_name : device_names_) {
+    if (device_name == msg.frame_id) {
+      ROS_INFO_STREAM_NAMED("robot_control", "Received controller startup sync message from hardware interface [" << device_name << "].");
+      controller_startup_sync_counter_++;
+      return;
+    }
   }
 }
 

@@ -2,6 +2,22 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Replaced error stream with throttle
+* Fixed crash when unplagged device is plugged at runtime.
+* Created message published in a topic by communication_handler that contains the connection status of each device.
+* Implemented rescanning when device is not found
+* Deactivation bug fixed
+* Fixed reconnection on killing nodes.
+* Add methods to retrieve actual device references
+* Refactor Gazebo plugin to prepare for SoftHand simulation
+* Added the control mode switch service. Added a parameter to choose to use .yaml limits or firmware ones.
+* Fix init when no device is found on the given port
+* Update license
+* Update arg description
+* Added a parameter to use the device with or without other robots. Added some motor limits when the qbmoves are used in kinematic configs.
+
 2.1.1 (2019-10-07)
 ------------------
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_control VERSION 2.1.1 LANGUAGES CXX)
+project(qb_device_control VERSION 2.2.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -90,6 +90,11 @@ else ()
 endif ()
 
 # Installation
+install(
+  TARGETS qb_device_default
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/
+)
+
 install(
   TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

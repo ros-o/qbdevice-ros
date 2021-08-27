@@ -2,6 +2,18 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Replaced error stream with throttle
+* Add controller startup sync to avoid hardcoded wait
+* Refactor control structures initialization
+* Pass command_old value in PositionJointSaturationHandle constructor
+* Set out-of-range warning with _TRHOTTLE mode
+* Add methods to retrieve actual device references
+* Set a better name for fake joint simulation variables
+* Added the control mode switch service. Added a parameter to choose to use .yaml limits or firmware ones.
+* Update license
+
 2.1.1 (2019-10-07)
 ------------------
 * Fix initial command and velocity limit for qbmoves

@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -162,6 +162,9 @@ class qbDeviceControl {
   ros::WallTimer frequency_timer_;
   ros::WallDuration control_duration_;
 
+  ros::Subscriber controller_startup_sync_subscriber_;
+  int controller_startup_sync_counter_;
+
   std::mutex sync_protector_;
   std::vector<std::string> device_names_;
   std::vector<std::string> controllers_;
@@ -219,6 +222,13 @@ class qbDeviceControl {
    * \sa controlCallback()
    */
   void controlSetupCallback(const ros::WallTimerEvent &timer_event);
+
+  /**
+   * Receive messages from all the connected hardware interfaces to sync the controller startup phase.
+   * \param msg The topic message containing the hardware interface name in the \p frame_id field.
+   * \sa controlSetupCallback()
+   */
+  void controllerStartupSyncCallback(const std_msgs::Header &msg);
 
   /**
    * Extract the device names associated to the given controller (each controller name is assumed to start with the

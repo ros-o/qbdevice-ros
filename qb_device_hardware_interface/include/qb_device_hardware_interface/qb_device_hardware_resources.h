@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *  
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *  
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -55,6 +55,7 @@ class qbDeviceResources {
         get_currents(true),
         get_positions(true),
         get_distinct_packages(false),
+        get_commands(false),
         set_commands(true),
         set_commands_async(false) {
     // qbhand uses only a subset of the followings
@@ -80,8 +81,10 @@ class qbDeviceResources {
   bool get_currents;  // specify if motor currents are retrieved at each control loop
   bool get_positions;  // specify if motor positions are retrieved at each control loop
   bool get_distinct_packages;  // old devices cannot retrieve current and position measurements in a single package
+  bool get_commands;  // specify if motor references are retrieved at each control loop
   bool set_commands;  // specify if command references are sent at each control loop
   bool set_commands_async;  // specify if command references are sent in a non-blocking fashion
+  bool use_joint_limits;  // specify if the device has to use the firmware limits or the yaml one
 };
 
 /**

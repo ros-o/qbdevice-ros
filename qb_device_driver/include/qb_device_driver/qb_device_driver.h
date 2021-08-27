@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -100,6 +100,21 @@ class qbDeviceAPI {
     char info[5000];
     commGetInfo(file_descriptor, id, INFO_ALL, info);  // actually only INFO_ALL is supported
     return info;
+  }
+
+  /**
+   * Retrieve the reference command to the motors of the given device.
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param[out] commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only
+   * the first element is filled while the other remains always \p 0; in the case of a \em qbmove both the elements
+   * contain relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
+   * \return The number of commands retrieved, i.e. the number of motors equipped on the given device.
+   * \sa getMeasurements(), getCurrents()
+   */
+  virtual int getCommands(comm_settings *file_descriptor, const int &id, std::vector<short int> &commands) {
+    commands.resize(2);
+    return commGetInputs(file_descriptor, id, commands.data());
   }
 
   /**
@@ -252,6 +267,21 @@ class qbDeviceAPI {
   virtual int setPID(comm_settings *file_descriptor, const int &id, std::vector<float> &pid) {
     ROS_ASSERT(pid.size() == 3);
     commGetParamList(file_descriptor, id, 2, pid.data(), sizeof(float), pid.size(), NULL);  // actually set the parameter (despite of its name)
+    return 0;
+  }
+
+  /**
+   * Set the control mode for qbmove.
+   * \param file_descriptor The file descriptor of the serial port on which the device is connected.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param control_id The id of the control mode: 0 -> posision control, 4 deflection control.
+   * \return Always \p 0 (note that this is a non reliable method).
+   */
+  virtual int setControlMode(comm_settings *file_descriptor, const int &id, uint8_t &control_id) {
+    ROS_ASSERT(control_id == 0 || control_id == 4);
+    commActivate(file_descriptor, id, 0); // deactivate device
+    commGetParamList(file_descriptor, id, 6, &control_id, sizeof(uint8_t), 1, NULL);  // actually set the parameter (despite of its name)
+    commActivate(file_descriptor, id, 1); // activate device
     return 0;
   }
 

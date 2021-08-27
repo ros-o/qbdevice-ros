@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *  
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *  
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -42,9 +42,18 @@ class PositionJointSaturationHandle {
    * \param limits The \p pointer to the joint limits structure of the joint.
    */
   PositionJointSaturationHandle(const hardware_interface::JointHandle &joint_handle, joint_limits_interface::JointLimits *limits)
+      : PositionJointSaturationHandle(joint_handle, limits, std::numeric_limits<double>::quiet_NaN()) {}
+
+  /**
+   * Construct the saturation handle with \b dynamic joint limits.
+   * \param joint_handle The joint handle of interest.
+   * \param limits The \p pointer to the joint limits structure of the joint.
+   * \param command_old The startup command value used for first enforceLimits() iteration.
+   */
+  PositionJointSaturationHandle(const hardware_interface::JointHandle &joint_handle, joint_limits_interface::JointLimits *limits, const double &command_old)
       : joint_handle_(joint_handle),
         limits_(limits),
-        command_old_(std::numeric_limits<double>::quiet_NaN()) {
+        command_old_(command_old) {
     if (!limits_->has_position_limits) {
       limits_->min_position = -std::numeric_limits<double>::max();
       limits_->max_position = std::numeric_limits<double>::max();
@@ -73,7 +82,10 @@ class PositionJointSaturationHandle {
     }
 
     const double command = joint_limits_interface::internal::saturate(joint_handle_.getCommand(), min_pos, max_pos);
-    ROS_WARN_STREAM_COND(joint_handle_.getCommand() < (min_pos - 0.035) || joint_handle_.getCommand() > (max_pos + 0.035), "Limit reached for joint " << joint_handle_.getName() << " (" << joint_handle_.getCommand() << ")");  // 0.035 rad is 2 degrees
+    if (joint_handle_.getCommand() < (min_pos - 0.035) || joint_handle_.getCommand() > (max_pos + 0.035)) {
+      // max one warning per second with _THROTTLE macro
+      ROS_WARN_STREAM_THROTTLE(1.0, "Limit reached for joint " << joint_handle_.getName() << " (" << joint_handle_.getCommand() << ")");  // 0.035 rad is 2 degrees
+    }
     joint_handle_.setCommand(command);
     command_old_ = command;
   }

@@ -2,6 +2,13 @@
 Changelog for package qb_device_srvs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.0 (2021-08-27)
+------------------
+* Add methods to retrieve actual device references
+* Fix cmake resource installation
+* Added the control mode switch service. Added a parameter to choose to use .yaml limits or firmware ones.
+* Update license
+
 2.1.1 (2019-10-07)
 ------------------
 

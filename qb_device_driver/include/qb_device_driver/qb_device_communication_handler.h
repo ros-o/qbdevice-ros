@@ -1,7 +1,7 @@
 /***
  *  Software License Agreement: BSD 3-Clause License
  *
- *  Copyright (c) 2016-2018, qbrobotics®
+ *  Copyright (c) 2016-2021, qbrobotics®
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -37,6 +37,7 @@
 
 // internal libraries
 #include <qb_device_driver/qb_device_driver.h>
+#include <qb_device_msgs/ConnectionState.h>
 #include <qb_device_srvs/qb_device_srvs.h>
 
 namespace qb_device_communication_handler {
@@ -106,6 +107,12 @@ class qbDeviceCommunicationHandler {
    */
   virtual int close(const std::string &serial_port);
 
+
+  /**
+   * Called by check_connection_status_timer_. It verify if a qbdevice is connected or not
+   */
+  void checkConnectionAndPublish(const ros::WallTimerEvent &timer_event);
+
   /**
    * Deactivate the motors of the given device. Do nothing if the device is not connected in the Communication Handler.
    * \param id The ID of the device to be deactivated, in range [\p 1, \p 128].
@@ -153,6 +160,17 @@ class qbDeviceCommunicationHandler {
    * \sa getInfo()
    */
   bool getInfoCallback(qb_device_srvs::TriggerRequest &request, qb_device_srvs::TriggerResponse &response);
+
+  /**
+   * Retrieve the reference command to the motors of the given device.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param[out] commands The reference command vector, expressed in \em ticks: if the device is a \em qbhand only
+   * the first element is filled while the other remains always \p 0; in the case of a \em qbmove both the elements
+   * contain relevant data, i.e. the commands respectively of \p motor_1 and \p motor_2.
+   * \param max_repeats The maximum number of consecutive repetitions to mark retrieved data as corrupted.
+   * \return The number of commands retrieved, i.e. the number of motors equipped on the given device.
+   */
+  virtual int getCommands(const int &id, const int &max_repeats, std::vector<short int> &commands);
 
   /**
    * Retrieve the motor currents of the given device.
@@ -325,6 +343,25 @@ class qbDeviceCommunicationHandler {
    */
   bool setPIDCallback(qb_device_srvs::SetPIDRequest &request, qb_device_srvs::SetPIDResponse &response);
 
+  /**
+   * Set control mode for qbmove.
+   * \param id The ID of the device of interest, in range [\p 1, \p 128].
+   * \param control_id the control id for qbmove: 0 -> POSITION, 4 -> DEFLECTION.
+   * \return Always \p 0 (note that this is a non reliable method).
+   * \sa qb_device_driver::qbDeviceAPI::setPID(), setPIDCallback()
+   */
+  int setControlMode(const int &id, const int &max_repeats, uint8_t &control_id);
+
+  /**
+   * Set (temporarily, i.e. until power off) the position control PID parameters of the device relative to the node
+   * requesting the service.
+   * \param request The request of the given service (see qb_device_srvs::SetPID for details).
+   * \param response The response of the given service (see qb_device_srvs::SetPID for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   * \sa setPID()
+   */
+  bool setControlModeCallback(qb_device_srvs::SetControlModeRequest &request, qb_device_srvs::SetControlModeResponse &response);
+
  private:
   ros::AsyncSpinner spinner_;
   ros::ServiceServer activate_motors_;
@@ -334,6 +371,10 @@ class qbDeviceCommunicationHandler {
   ros::ServiceServer initialize_device_;
   ros::ServiceServer set_commands_;
   ros::ServiceServer set_pid_;
+  ros::ServiceServer set_control_mode_;
+  ros::WallTimer check_connection_status_timer_;
+  ros::Publisher connection_state_publisher_;
+  qb_device_msgs::ConnectionState connection_state_msg_;
   qb_device_driver::qbDeviceAPIPtr device_api_;
 
   /**

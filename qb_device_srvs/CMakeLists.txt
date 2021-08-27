@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_srvs VERSION 2.1.1 LANGUAGES CXX)
+project(qb_device_srvs VERSION 2.2.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -17,6 +17,7 @@ add_service_files(
     SetCommands.srv
     SetPID.srv
     Trigger.srv
+    SetControlMode.srv
 )
 
 generate_messages(
@@ -44,4 +45,11 @@ install(
     include/${PROJECT_NAME}/
   DESTINATION
     ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(
+  DIRECTORY
+    srv/
+  DESTINATION
+    ${CATKIN_PACKAGE_SHARE_DESTINATION}/srv
 )
