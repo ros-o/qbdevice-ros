@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_gazebo VERSION 2.3.3 LANGUAGES CXX)
+project(qb_device_gazebo VERSION 2.3.4 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
