@@ -220,8 +220,8 @@ bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
     return false;
   }
   std::vector<std::string> default_controller_joints;
-  if (!robot_hw_nh.getParam(default_controller + "/joints", default_controller_joints)) {
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot retrieve 'joints' from the controller in the Parameter Server [" << robot_hw_nh.getNamespace() << "].");
+  if (!robot_hw_nh.getParam(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/joints", default_controller_joints)) {
+    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot retrieve 'joints' from the controller in the Parameter Server [" << ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller  << "].");
     return false;
   }
   std::vector<double> commands;
@@ -240,8 +240,8 @@ bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
   }
   joint_limits_.initialize(robot_hw_nh, joints_, urdf_model_, interfaces_.joint_position);
 
-  controller_first_command_publisher_ = node_handle_.advertise<trajectory_msgs::JointTrajectory>(default_controller + "/command", 1);
-  controller_state_subscriber_ = node_handle_.subscribe(default_controller + "/state", 1, &qbDeviceHW::controllerStatusCallback, this);
+  controller_first_command_publisher_ = node_handle_.advertise<trajectory_msgs::JointTrajectory>(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/command", 1);
+  controller_state_subscriber_ = node_handle_.subscribe(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/state", 1, &qbDeviceHW::controllerStatusCallback, this);
   trajectory_msgs::JointTrajectoryPoint point;
   point.positions.resize(commands.size());
   point.velocities.resize(commands.size());

@@ -39,13 +39,13 @@
   <!-- load controller parameters to be retrieved by each device hardware interface for references initialization -->
   <group ns="$(arg device_name)">
     <group if="$(eval device_type == 'qbhand')">
-      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_synergy_trajectory_controller"/>
+      <param name="default_controller" type="str" value="/control/$(arg device_name)_synergy_trajectory_controller"/>
     </group>
     <group if="$(eval device_type == 'qbhand2m')">
-      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_synergies_trajectory_controller"/>
+      <param name="default_controller" type="str" value="/control/$(arg device_name)_synergies_trajectory_controller"/>
     </group>
     <group if="$(eval device_type == 'qbmove' or device_type =='qbclaw')">
-      <param name="default_controller" type="str" value="/$(arg robot_namespace)/control/$(arg device_name)_position_and_preset_trajectory_controller"/>
+      <param name="default_controller" type="str" value="/control/$(arg device_name)_position_and_preset_trajectory_controller"/>
     </group>
   </group>
 </launch>
