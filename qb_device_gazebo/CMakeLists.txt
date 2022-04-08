@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_gazebo VERSION 2.3.0 LANGUAGES CXX)
+project(qb_device_gazebo VERSION 2.3.1 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -41,13 +41,13 @@ target_link_libraries(combined_robot_hw_sim
 if (CMAKE_VERSION VERSION_LESS "3.1")
   target_compile_options(combined_robot_hw_sim
     PUBLIC
-      "-std=c++14"
+      "-std=c++17"
   )
 else ()
   set_property(
     TARGET
       combined_robot_hw_sim
-    PROPERTY CXX_STANDARD 14
+    PROPERTY CXX_STANDARD 17
   )
 
   set_property(

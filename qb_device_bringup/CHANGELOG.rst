@@ -2,6 +2,9 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.3.1 (2022-04-08)
+------------------
+
 2.3.0 (2022-04-08)
 ------------------
 * BUG FIX when a generic qbrobotics device roslaunch is grouped in a namespace
