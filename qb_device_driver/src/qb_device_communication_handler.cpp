@@ -30,11 +30,6 @@
 using namespace qb_device_communication_handler;
 
 qbDeviceCommunicationHandler::qbDeviceCommunicationHandler()
-    : qbDeviceCommunicationHandler(std::make_shared<qb_device_driver::qbDeviceAPI>()) {
-  
-}
-
-qbDeviceCommunicationHandler::qbDeviceCommunicationHandler(qb_device_driver::qbDeviceAPIPtr device_api)
     : spinner_(11),  // 10 is the maximum number of connected serial ports (cr. API)
       node_handle_(ros::NodeHandle()),
       activate_motors_(node_handle_.advertiseService("/communication_handler/activate_motors", &qbDeviceCommunicationHandler::activateCallback, this)),
@@ -45,10 +40,11 @@ qbDeviceCommunicationHandler::qbDeviceCommunicationHandler(qb_device_driver::qbD
       set_commands_(node_handle_.advertiseService("/communication_handler/set_commands", &qbDeviceCommunicationHandler::setCommandsCallback, this)),
       set_pid_(node_handle_.advertiseService("/communication_handler/set_pid", &qbDeviceCommunicationHandler::setPIDCallback, this)),
       set_control_mode_(node_handle_.advertiseService("/communication_handler/set_control_mode", &qbDeviceCommunicationHandler::setControlModeCallback, this)),
+      go_to_home_(node_handle_.advertiseService("/communication_handler/go_to_home", &qbDeviceCommunicationHandler::goToHomeCallback, this)),
       connection_state_publisher_(node_handle_.advertise<qb_device_msgs::ConnectionState>("/communication_handler/connection_state",1)),
-      
-      device_api_(device_api) {
-  while (!getSerialPortsAndDevices(1)) {
+      communication_handler_(std::make_shared<qbrobotics_research_api::Communication>()),
+      communication_handler_legacy_(std::make_shared<qbrobotics_research_api::CommunicationLegacy>(*communication_handler_)){ // make shared pointer that handles the communication {
+  while (!getSerialPortsAndDevices(3)) {
     ROS_WARN_STREAM_NAMED("communication_handler", "[CommunicationHandler] is waiting for devices...");
     ros::Duration(1.0).sleep();
   }
@@ -59,8 +55,8 @@ qbDeviceCommunicationHandler::qbDeviceCommunicationHandler(qb_device_driver::qbD
 
 qbDeviceCommunicationHandler::~qbDeviceCommunicationHandler() {
   ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] Attempt to terminate the process properly...");
-  for (auto const &file_descriptor : file_descriptors_) {
-    close(file_descriptor.first);
+  for (auto const port:serial_ports_) {
+    close(port.serial_port);
   }
 }
 
@@ -71,7 +67,8 @@ int qbDeviceCommunicationHandler::activate(const int &id, const bool &command, c
 
   failures = isActive(id, max_repeats, status);
   if (status != command) {
-    device_api_->activate(&file_descriptors_.at(connected_devices_.at(id)), id, command);
+    devices_.at(id)->setMotorStates(command);
+    ros::Duration(0.5).sleep(); // wait for motors to be active
     failures = std::max(failures, isActive(id, max_repeats, status));
     if (status != command) {
       ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"communication_handler", "[CommunicationHandler] device [" << id << "] fails on " << command_prefix << "activation.");
@@ -104,20 +101,14 @@ bool qbDeviceCommunicationHandler::activateCallback(qb_device_srvs::TriggerReque
 }
 
 int qbDeviceCommunicationHandler::close(const std::string &serial_port) {
-  if (!isInOpenMap(serial_port)) {
-    ROS_WARN_STREAM_NAMED("communication_handler", "[CommunicationHandler] has not handled [" << serial_port << "].");
-    return 0;  // no error: the communication is close anyway
-  }
-
   for (auto const &device : connected_devices_) {
     if (device.second == serial_port) {
       deactivate(device.first, 3);
     }
   }
   connected_devices_.clear();
-  ROS_INFO_STREAM_NAMED("communication_handler", "# of connected devices " << connected_devices_.size());
-  device_api_->close(&file_descriptors_.at(serial_port));
-  file_descriptors_.erase(serial_port);
+  ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] # of connected devices " << connected_devices_.size());
+  communication_handler_->closeSerialPort(serial_port);
   ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] does not handle [" << serial_port << "] anymore.");
   return 0;
 }
@@ -146,7 +137,7 @@ int qbDeviceCommunicationHandler::getCurrents(const int &id, const int &max_repe
   int failures = 0;
   currents.resize(2);  // required by 'getCurrents()'
   while (failures <= max_repeats) {
-    if (device_api_->getCurrents(&file_descriptors_.at(connected_devices_.at(id)), id, currents) < 0) {
+    if (devices_.at(id)->getCurrents(currents) < 0) {
       failures++;
       continue;
     }
@@ -155,12 +146,70 @@ int qbDeviceCommunicationHandler::getCurrents(const int &id, const int &max_repe
   return failures;
 }
 
+int qbDeviceCommunicationHandler::getSerialPortsAndDevices(const int &max_repeats) {
+  // clear devices and serial vectors/maps
+  serial_ports_.clear();
+  device_ids_.clear();
+  devices_.clear();
+  if (communication_handler_->listSerialPorts(serial_ports_) <= 0) {
+      ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] No serial ports found!");
+      return -1;
+  }
+  int devices_retrieved;
+  ros::Duration(1).sleep();
+  for(auto &serial_port:serial_ports_){ // scan and open all the serial port
+    try {
+      devices_retrieved = communication_handler_->listConnectedDevices(serial_port.serial_port, device_ids_);
+    } catch(serial::SerialIOException &/*exc_name*/) {
+      ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] No qbrobotics device(s) connected!");
+      return -1;
+    }
+    serial_protectors_.insert(std::make_pair(serial_port.serial_port, std::make_unique<std::mutex>()));  // never override
+    if (devices_retrieved > 0) { // retrieved at least a qbrobotics device
+      ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] Found "<< devices_retrieved << " qbrobotics devices on [" << serial_port.serial_port << "]");
+      for(auto &device_id:device_ids_) {
+        if (device_id.id == 120 || device_id.id == 0) {
+          continue;  // ID 120 is reserved for dummy board which should not be considered as a connected device (ID 0 is for sure an error)
+        }
+        int failures = 0;
+        while (failures <= max_repeats) {
+          try { // TODO: differentiate the devices
+            if (device_id.type == "001" || device_id.type == "006") {  // device S/N can be retireved only from new device firmware. They can use communication_handler_
+              devices_.insert(std::make_pair(static_cast<int>(device_id.id), std::make_shared<qbrobotics_research_api::Device>(communication_handler_, "dev", serial_port.serial_port, device_id.id)));
+              connected_devices_.insert(std::make_pair(static_cast<int>(device_id.id), serial_port.serial_port));
+              ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] Connected to device with id: "<< (int)device_id.id);
+              break;
+            } else {
+              communication_handler_legacy_ = std::make_shared<qbrobotics_research_api::CommunicationLegacy>(*communication_handler_);
+              devices_.insert(std::make_pair(static_cast<int>(device_id.id), std::make_shared<qbrobotics_research_api::Device>(communication_handler_legacy_, "dev", serial_port.serial_port, device_id.id)));
+              connected_devices_.insert(std::make_pair(static_cast<int>(device_id.id), serial_port.serial_port));
+              ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] The device with id " << (int)device_id.id << " is connected.");
+              break;
+            }
+          } catch(...) {
+            ros::Duration(0.1).sleep();
+            failures++;
+          }
+        }
+        if(failures > max_repeats){
+          ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] cannot connect to qbrobotics device(s) after "<< max_repeats << " attempt(s)");
+          close(serial_port.serial_port);
+          return -1;
+        }
+      }
+    } else {
+      ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] no qbrobotics devices found on [" << serial_port.serial_port << "]");
+      close(serial_port.serial_port);
+      return -1;
+    }
+  }
+  return devices_retrieved;
+}
+
 int qbDeviceCommunicationHandler::getInfo(const int &id, const int &max_repeats, std::string &info) {
-  // the API methods are called at most (i.e. very unlikely) 'max_repeats' times to guarantee the correct identification of a real fault in the communication
   int failures = 0;
   while (failures <= max_repeats) {
-    info = device_api_->getInfo(&file_descriptors_.at(connected_devices_.at(id)), id);
-    if (info == "") {
+    if (devices_.at(id)->getInfo(INFO_ALL, info) < 0) {
       failures++;
       continue;
     }
@@ -188,7 +237,7 @@ int qbDeviceCommunicationHandler::getCommands(const int &id, const int &max_repe
   int failures = 0;
   commands.resize(2);  // required by 'getCurrents()'
   while (failures <= max_repeats) {
-    if (device_api_->getCommands(&file_descriptors_.at(connected_devices_.at(id)), id, commands) < 0) {
+    if (devices_.at(id)->getControlReferences(commands) < 0) {
       failures++;
       continue;
     }
@@ -204,12 +253,10 @@ int qbDeviceCommunicationHandler::getMeasurements(const int &id, const int &max_
   positions.resize(3);
   std::vector<short int> measurements(5, 0);  // required by 'getMeasurements()'
   while (failures <= max_repeats) {
-    if (device_api_->getMeasurements(&file_descriptors_.at(connected_devices_.at(id)), id, measurements) < 0) {
+    if (devices_.at(id)->getCurrentsAndPositions(currents, positions) < 0) {
       failures++;
       continue;
     }
-    std::copy(measurements.begin(), measurements.begin()+2, currents.begin());
-    std::copy(measurements.begin()+2, measurements.end(), positions.begin());
     break;
   }
   return failures;
@@ -222,7 +269,7 @@ bool qbDeviceCommunicationHandler::getMeasurementsCallback(qb_device_srvs::GetMe
     return true;
   }
   std::lock_guard<std::mutex> serial_lock(*serial_protectors_.at(connected_devices_.at(request.id)));
-
+  const clock_t begin_time = clock();
   response.failures = 0;  // need to return true even if both 'get_currents' and 'get_positions' are set to false
   if (request.get_currents && request.get_positions) {
     if (!request.get_distinct_packages) {
@@ -246,78 +293,36 @@ bool qbDeviceCommunicationHandler::getMeasurementsCallback(qb_device_srvs::GetMe
 
   response.stamp = ros::Time::now();
   response.success = isReliable(response.failures, request.max_repeats);
+  ros::Duration(0.0001).sleep();
+  //std::cout << "time getMeasurementsCallback of " << request.id << ": "<< float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
   return true;
 }
 
-int qbDeviceCommunicationHandler::getParameters(const int &id, std::vector<int> &limits, std::vector<int> &resolutions) {
-  std::vector<int> input_mode = {-1};
-  std::vector<int> control_mode = {-1};
-  device_api_->getParameters(&file_descriptors_.at(connected_devices_.at(id)), id, input_mode, control_mode, resolutions, limits);
-  if (!input_mode.front() && (!control_mode.front() || control_mode.front() == 4)) {  // both input and control modes equals 0 are required, i.e. respectively USB connected and position controlled (also deflection control is possible with qbmoves)
+int qbDeviceCommunicationHandler::getParameters(const int &id, std::vector<int32_t> &limits, std::vector<uint8_t> &resolutions) {
+  uint8_t control_mode;
+  std::vector<int8_t> param_buffer;
+  devices_.at(id)->getParameters(param_buffer);
+  ros::Duration(0.001).sleep(); 
+  devices_.at(id)->getParams()->getParameter<uint8_t>(6, param_buffer, control_mode);
+  devices_.at(id)->getParams()->getParameter<int32_t>(11, param_buffer, limits);
+  devices_.at(id)->getParams()->getParameter<uint8_t>(7, param_buffer, resolutions);
+  if (control_mode == 0 || control_mode == 4) {  // both input and control modes equals 0 are required, i.e. respectively USB connected and position controlled (also deflection control is possible with qbmoves)
     return 0;
   }
   return -1;
 }
 
 int qbDeviceCommunicationHandler::getPositions(const int &id, const int &max_repeats, std::vector<short int> &positions) {
-  // the API methods are called at most (i.e. very unlikely) 'max_repeats' times to guarantee the correct identification of a real fault in the communication
   int failures = 0;
   positions.resize(3);  // required by 'getPositions()'
   while (failures <= max_repeats) {
-    if (device_api_->getPositions(&file_descriptors_.at(connected_devices_.at(id)), id, positions) < 0) {
+    if (devices_.at(id)->getPositions(positions) < 0) {
       failures++;
       continue;
     }
     break;
   }
   return failures;
-}
-
-int qbDeviceCommunicationHandler::getSerialPortsAndDevices(const int &max_repeats) {
-  std::map<int, std::string> connected_devices;
-  std::array<char[255], 10> serial_ports;
-  int serial_ports_number = device_api_->getSerialPorts(serial_ports);
-  for (int i=0; i<serial_ports_number; i++) {
-    int failures = 0;
-    while (failures <= max_repeats) {
-      if (open(serial_ports.at(i)) != 0) {
-        failures++;
-        continue;
-      }
-      break;
-    }
-    if (failures >= max_repeats) {
-      continue;
-    }
-
-    // 'serial_protectors_' is not cleared because of the previously acquired lock, do not do it!
-    serial_protectors_.insert(std::make_pair(serial_ports.at(i), std::make_unique<std::mutex>()));  // never override
-
-    int at_least_one_device_found = 0;
-    std::array<char, 255> devices;
-    int devices_number = device_api_->getDeviceIds(&file_descriptors_.at(serial_ports.at(i)), devices);
-    for (int j=0; j<devices_number; j++) {
-      if (devices.at(j) == 120 || devices.at(j) == 0) {
-        continue;  // ID 120 is reserved for dummy board which should not be considered as a connected device (ID 0 is for sure an error)
-      }
-      // actually a std::map does not let same-id devices on distinct serial ports
-      connected_devices.insert(std::make_pair(static_cast<int>(devices.at(j)), serial_ports.at(i)));
-      at_least_one_device_found++;
-    }
-
-    if (!at_least_one_device_found) {
-      ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] no qbrobotics devices found on [" << serial_ports.at(i) << "]");
-      close(serial_ports.at(i));
-    }
-  }
-
-  ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] has found [" << connected_devices.size() << "] devices connected:");
-  for (auto const &device : connected_devices) {
-    ROS_INFO_STREAM_NAMED("communication_handler", "                       - device [" << device.first << "] connected through [" << device.second << "]");
-  }
-
-  connected_devices_ = connected_devices;
-  return connected_devices_.size();
 }
 
 int qbDeviceCommunicationHandler::isActive(const int &id, const int &max_repeats, bool &status) {
@@ -325,7 +330,7 @@ int qbDeviceCommunicationHandler::isActive(const int &id, const int &max_repeats
   int failures = 0;
   status = false;
   while (failures <= max_repeats) {
-    if (!device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id, status)) {
+    if (devices_.at(id)->getMotorStates(status) < 0) {
       failures++;
       continue;
     }
@@ -334,11 +339,13 @@ int qbDeviceCommunicationHandler::isActive(const int &id, const int &max_repeats
   return failures;
 }
 
+
 int qbDeviceCommunicationHandler::isConnected(const int &id, const int &max_repeats) {
   // the API methods are called at most (i.e. very unlikely) 'max_repeats' times to guarantee the correct identification of a real fault in the communication
   int failures = 0;
   while (failures <= max_repeats) {
-    if (!device_api_->getStatus(&file_descriptors_.at(connected_devices_.at(id)), id)) {
+    bool status;
+    if (devices_.at(id)->getMotorStates(status) < 0) {
       failures++;
       continue;
     }
@@ -349,33 +356,6 @@ int qbDeviceCommunicationHandler::isConnected(const int &id, const int &max_repe
 
 bool qbDeviceCommunicationHandler::isInConnectedSet(const int &id) {
   return connected_devices_.count(id);
-}
-
-bool qbDeviceCommunicationHandler::isInOpenMap(const std::string &serial_port) {
-  return file_descriptors_.count(serial_port);
-}
-
-int qbDeviceCommunicationHandler::open(const std::string &serial_port) {
-  if (!std::regex_match(serial_port, std::regex("/dev/ttyUSB[[:digit:]]+"))) {
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"communication_handler", "[CommunicationHandler] fails while opening [" << serial_port << "] because it does not match the expected pattern [/dev/ttyUSB*].");
-    return -1;
-  }
-
-  if (isInOpenMap(serial_port)) {
-    ROS_DEBUG_STREAM_NAMED("communication_handler", "[CommunicationHandler] already handles [" << serial_port << "].");
-    return 0;  // no error: the communication is open anyway
-  }
-
-  device_api_->open(&file_descriptors_[serial_port], serial_port);  // also create a pair in the map
-  if(file_descriptors_.at(serial_port).file_handle == INVALID_HANDLE_VALUE) {
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"communication_handler", "[CommunicationHandler] fails while opening [" << serial_port << "] and sets errno [" << strerror(errno) << "].");
-    // remove file descriptor entry
-    file_descriptors_.erase(serial_port);
-    return -1;
-  }
-
-  ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] handles [" << serial_port << "].");
-  return 0;
 }
 
 bool qbDeviceCommunicationHandler::initializeCallback(qb_device_srvs::InitializeDeviceRequest &request, qb_device_srvs::InitializeDeviceResponse &response) {
@@ -409,7 +389,7 @@ bool qbDeviceCommunicationHandler::initializeCallback(qb_device_srvs::Initialize
     response.failures = activate(request.id, request.max_repeats);
     response.success = isReliable(response.failures, request.max_repeats);
     if (!response.success) {
-      ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] has not initialized device [" << request.id << "] because it cannot activate its motors (please, check the motor positions).");
+      ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] has not initialized device [" << request.id << "] because it cannot activate its motors (please, check the motor positions).");
       response.message = "Device [" + std::to_string(request.id) + "] initialization fails because it cannot activate the device (please, check the motor positions).";
       return true;
     }
@@ -448,21 +428,26 @@ void qbDeviceCommunicationHandler::checkConnectionAndPublish(const ros::WallTime
 int qbDeviceCommunicationHandler::setCommandsAndWait(const int &id, const int &max_repeats, std::vector<short int> &commands) {
   // the API methods are called at most (i.e. very unlikely) 'max_repeats' times to guarantee the correct identification of a real fault in the communication
   int failures = 0;
+  const clock_t begin_time = clock();
   commands.resize(2);  // required by 'setCommandsAndWait()'
   while (failures <= max_repeats) {
-    if (device_api_->setCommandsAndWait(&file_descriptors_.at(connected_devices_.at(id)), id, commands) < 0) {
+    if (devices_.at(id)->setControlReferencesAndWait(commands) < 0) {
       failures++;
       continue;
     }
     break;
   }
+  //std::cout << "time setCommandsAndWait of" << id << ": " << float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
   return failures;
 }
 
 int qbDeviceCommunicationHandler::setCommandsAsync(const int &id, std::vector<short int> &commands) {
   // qbhand sets only inputs.at(0), but setCommandsAsync expects two-element vector (ok for both qbhand and qbmove)
   commands.resize(2);  // required by 'setCommandsAsync()'
-  device_api_->setCommandsAsync(&file_descriptors_.at(connected_devices_.at(id)), id, commands);
+  const clock_t begin_time = clock();
+  devices_.at(id)->setControlReferences(commands);
+  ros::Duration(0.0001).sleep();
+  //std::cout << "time setCommandsAsync of" << id << ": " << float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
   return 0;  // note that this is a non reliable method
 }
 
@@ -490,7 +475,7 @@ int qbDeviceCommunicationHandler::setPID(const int &id, const int &max_repeats, 
   // the API methods are called at most (i.e. very unlikely) 'max_repeats' times to guarantee the correct identification of a real fault in the communication
   int failures = 0;
   while (failures <= max_repeats) {
-    if (device_api_->setPID(&file_descriptors_.at(connected_devices_.at(id)), id, pid) < 0) {
+    if (devices_.at(id)->setParamPositionPID(pid) < 0) {
       failures++;
       continue;
     }
@@ -521,7 +506,7 @@ bool qbDeviceCommunicationHandler::setPIDCallback(qb_device_srvs::SetPIDRequest 
 int qbDeviceCommunicationHandler::setControlMode(const int &id, const int &max_repeats, uint8_t &control_id) {
   int failures = 0;
   while (failures <= max_repeats) {
-    if (device_api_->setControlMode(&file_descriptors_.at(connected_devices_.at(id)), id, control_id) < 0) {
+    if (devices_.at(id)->setParamControlMode(control_id) < 0) {
       failures++;
       continue;
     }
@@ -547,7 +532,31 @@ bool qbDeviceCommunicationHandler::setControlModeCallback(qb_device_srvs::SetCon
     response.success = false;
     return true;
   }
-  response.failures = setControlMode(request.id, request.max_repeats, control_id);  // blocking function
+
+  std::lock_guard<std::mutex> serial_lock(*serial_protectors_.at(connected_devices_.at(request.id)));
+  response.failures = setControlMode(request.id, request.max_repeats, control_id);
   response.success = isReliable(response.failures, request.max_repeats);
   return true; 
+}
+
+bool qbDeviceCommunicationHandler::goToHomeCallback(qb_device_srvs::TriggerRequest &request, qb_device_srvs::TriggerResponse &response){ //TODO: implement for all devices
+  int failures = 0;
+  std::lock_guard<std::mutex> serial_lock(*serial_protectors_.at(connected_devices_.at(request.id)));
+  qbrobotics_research_api::qbSoftHand2MotorsResearch SHR2(communication_handler_legacy_, "dev", connected_devices_.at(request.id), request.id);
+  while (failures < request.max_repeats) {
+    if (SHR2.setHomePosition() == -1) {
+      failures++;
+      continue;
+    }
+    break;
+  }
+  response.failures = failures;
+  if(failures < request.max_repeats){
+    response.success = true;
+    response.message = "Device sent to HOME position";
+  } else {
+    response.success = false;
+    response.message = "Communication error";
+  }
+  return true;
 }

@@ -2,6 +2,20 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.0 (2022-07-05)
+------------------
+* Changed internal qbdevice API with public one.
+* Created service for Homing SHR2
+* Created SHR2 class in qbrobotics-api
+* Minor changes (comments...)
+* Modified serial sub-modules: Changes done in communication_handler node
+* Modified waiting time. Works for a brief period but stop after reboot.
+* modified scanPortsAndDevicesFunction. New API implementation does not with kinematic chain.
+* Added mutex to avoid conflicts on the same serial port. Removed old and unusefull comments.
+* changes in qbrobotics-api.
+* New API migration. qb_device_driver class is no longer required.
+* API 7.X.X integration. Incompatibility with the wrapper script
+
 2.3.4 (2022-04-08)
 ------------------
 

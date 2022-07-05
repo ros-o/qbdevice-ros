@@ -2,6 +2,10 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.0 (2022-07-05)
+------------------
+* Added loading motors control for SH2R
+
 2.3.4 (2022-04-08)
 ------------------
 

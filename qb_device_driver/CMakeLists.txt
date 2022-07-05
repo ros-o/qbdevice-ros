@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_driver VERSION 2.3.4 LANGUAGES CXX)
+project(qb_device_driver VERSION 3.0.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -8,16 +8,15 @@ find_package(catkin REQUIRED
     qb_device_srvs
     qb_device_utils
 )
+add_subdirectory(api/qbdevice-api-7.x.x)
 
 include_directories(include
-  api/src
   ${catkin_INCLUDE_DIRS}
 )
 
 catkin_package(
   INCLUDE_DIRS
     include
-    api/src
   CATKIN_DEPENDS
     roscpp
     qb_device_srvs
@@ -28,10 +27,12 @@ catkin_package(
 add_executable(qb_device_communication_handler
   src/main.cpp
   src/qb_device_communication_handler.cpp
-  api/src/qbmove_communications.cpp
 )
 
 target_link_libraries(qb_device_communication_handler
+  PRIVATE
+    Serial
+    qbrobotics_driver
   PUBLIC
     ${catkin_LIBRARIES}
 )

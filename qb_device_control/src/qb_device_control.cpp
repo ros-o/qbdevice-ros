@@ -54,9 +54,11 @@ qbDeviceControl::qbDeviceControl()
       get_measurements_client_ = node_handle_.serviceClient<qb_device_srvs::GetMeasurements>("/communication_handler/get_measurements", true);
       set_commands_client_ = node_handle_.serviceClient<qb_device_srvs::SetCommands>("/communication_handler/set_commands", true);
       set_pid_client_ = node_handle_.serviceClient<qb_device_srvs::SetPID>("/communication_handler/set_pid", true);
+      go_to_home_client_ = node_handle_.serviceClient<qb_device_srvs::Trigger>("/communication_handler/go_to_home", true);
       get_async_measurements_server_ = node_handle_.advertiseService("get_async_measurements", &qbDeviceControl::getAsyncMeasurementsCallback, this);
       set_async_commands_server_ = node_handle_.advertiseService("set_async_commands", &qbDeviceControl::setAsyncCommandsCallback, this);
       set_async_pid_server_ = node_handle_.advertiseService("set_async_pid", &qbDeviceControl::setAsyncPIDCallback, this);
+      go_to_home_server_ = node_handle_.advertiseService("go_to_home", &qbDeviceControl::goToHomeCallback, this);
     }
 
     controller_startup_sync_counter_ = 0;
@@ -361,6 +363,26 @@ bool qbDeviceControl::setAsyncPIDCallback(qb_device_srvs::SetPIDRequest &request
   std::lock_guard<std::mutex> motor_lock(sync_protector_);  // automatically released at the end of the callback
   if (set_pid_client_) {
     set_pid_client_.call(request, response);
+    return true;
+  }
+  ROS_ERROR_STREAM_NAMED("robot_control", "Required service seems no longer advertised.");
+  return false;
+}
+
+bool qbDeviceControl::goToHomeCallback(qb_device_srvs::TriggerRequest &request, qb_device_srvs::TriggerResponse &response) {
+  std::lock_guard<std::mutex> motor_lock(sync_protector_);  // automatically released at the end of the callback
+  if (go_to_home_client_) {
+    go_to_home_client_.call(request, response);
+    for(auto &controller:controllers_){
+      trajectory_msgs::JointTrajectory zero_cmd;
+      trajectory_msgs::JointTrajectoryPoint point;
+      point.positions = {0, 0};
+      point.time_from_start = ros::Duration(1);
+      zero_cmd.points.push_back(point);
+      zero_cmd.header.stamp = ros::Time(0);
+      zero_cmd.joint_names = controller_joints_.at(controller);
+      move(zero_cmd, controller);
+    }
     return true;
   }
   ROS_ERROR_STREAM_NAMED("robot_control", "Required service seems no longer advertised.");

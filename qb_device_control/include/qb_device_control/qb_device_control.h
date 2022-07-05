@@ -154,9 +154,11 @@ class qbDeviceControl {
   ros::ServiceClient get_measurements_client_;
   ros::ServiceClient set_commands_client_;
   ros::ServiceClient set_pid_client_;
+  ros::ServiceClient go_to_home_client_;
   ros::ServiceServer get_async_measurements_server_;
   ros::ServiceServer set_async_commands_server_;
   ros::ServiceServer set_async_pid_server_;
+  ros::ServiceServer go_to_home_server_;
   ros::WallTimer control_setup_timer_;
   ros::WallTimer control_timer_;
   ros::WallTimer frequency_timer_;
@@ -306,6 +308,14 @@ class qbDeviceControl {
    * \sa qb_device_communication_handler::setPIDCallback()
    */
   bool setAsyncPIDCallback(qb_device_srvs::SetPIDRequest &request, qb_device_srvs::SetPIDResponse &response);
+
+  /**
+   * Send the device to HOME position and set the joint trajectory command to zero.
+   * \param request The request of the given service (see qb_device_srvs::setControlMode for details).
+   * \param response The response of the given service (see qb_device_srvs::setControlMode for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   */
+  bool goToHomeCallback(qb_device_srvs::TriggerRequest &request, qb_device_srvs::TriggerResponse &response);
 
   /**
    * Read the current state from the HW, update all active controllers, and send the new references to the HW. The

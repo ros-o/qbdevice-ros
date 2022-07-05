@@ -1,6 +1,6 @@
 <package format="2">
   <name>qb_device_control</name>
-  <version>2.3.4</version>
+  <version>3.0.0</version>
   <description>
     This package contains a device-independent control library for qbrobotics® devices.
   </description>

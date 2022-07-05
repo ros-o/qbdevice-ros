@@ -73,8 +73,8 @@ class qbDeviceResources {
   int motor_axis_direction;
   std::string name;  // device name is chosen to properly set ROS namespaces to avoid name clashes
   std::string serial_port;  // serial port to which the device is connected
-  std::vector<int> position_limits;  // lower and upper limits for each motor [ticks]
-  std::vector<int> encoder_resolutions;  // used to convert from [ticks] to [radians/degrees] and vice versa
+  std::vector<int32_t> position_limits;  // lower and upper limits for each motor [ticks]
+  std::vector<uint8_t> encoder_resolutions;  // used to convert from [ticks] to [radians/degrees] and vice versa
 
   // read/write settings for the current device
   int max_repeats;  // max number of consecutive repetitions to mark retrieved data as corrupted

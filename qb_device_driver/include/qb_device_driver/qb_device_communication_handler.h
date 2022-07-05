@@ -36,7 +36,8 @@
 #include <ros/ros.h>
 
 // internal libraries
-#include <qb_device_driver/qb_device_driver.h>
+#include <serial/serial.h>
+#include <qbrobotics_research_api/qbsofthand2_research_api.h>
 #include <qb_device_msgs/ConnectionState.h>
 #include <qb_device_srvs/qb_device_srvs.h>
 
@@ -64,12 +65,6 @@ class qbDeviceCommunicationHandler {
    */
   qbDeviceCommunicationHandler();
 
-  /**
-   * Allow to mock the API for unit testing. It is called from the default constructor with the real API smart pointer,
-   * but it can be called with a pointer to the mock class inherited from the \p qbDeviceAPI itself.
-   * \param device_api The shared pointer to the current API derived from \p qb_device_driver::qbDeviceAPI.
-   */
-  qbDeviceCommunicationHandler(qb_device_driver::qbDeviceAPIPtr device_api);
 
   /**
    * Close all the still open serial ports.
@@ -80,7 +75,6 @@ class qbDeviceCommunicationHandler {
  protected:
   ros::NodeHandle node_handle_;
   std::map<std::string, std::unique_ptr<std::mutex>> serial_protectors_;  // only callbacks must lock the serial resources
-  std::map<std::string, comm_settings> file_descriptors_;
   std::map<int, std::string> connected_devices_;
 
   /**
@@ -103,7 +97,7 @@ class qbDeviceCommunicationHandler {
   /**
    * Close the communication with all the devices connected to the given serial port.
    * \param serial_port The serial port which has to be closed, e.g. \p /dev/ttyUSB0.
-   * \sa qb_device_driver::qbDeviceAPI::close(), isInOpenMap(), open()
+   * \sa open(), qbrobotics_research_api::Communication::closeSerialPort
    */
   virtual int close(const std::string &serial_port);
 
@@ -209,7 +203,7 @@ class qbDeviceCommunicationHandler {
    * \return \p 0 on success.
    * \sa qb_device_driver::qbDeviceAPI::getParameters(), getInfo(), initializeCallback()
    */
-  virtual int getParameters(const int &id, std::vector<int> &limits, std::vector<int> &resolutions);
+  virtual int getParameters(const int &id, std::vector<int32_t> &limits, std::vector<uint8_t> &resolutions);
 
   /**
    * Retrieve the motor positions of the given device.
@@ -225,14 +219,13 @@ class qbDeviceCommunicationHandler {
   virtual int getPositions(const int &id, const int &max_repeats, std::vector<short int> &positions);
 
   /**
-   * Scan for all the serial ports of type \p /dev/ttyUSB* detected in the system, initialize their mutex protector
-   * (each serial port connected to the system has to be accessed in a mutually exclusive fashion), and retrieve all
+   * Scan for all the serial ports of type \p /dev/ttyUSB* detected in the system and retrieve all
    * the qbrobotics devices connected to them. For each device, store its ID in the private map \p connected_devices_,
    * i.e. insert a pair [\p device_id, \p serial_port]. The map \p connected_devices_ is constructed from scratch at
    * each call.
    * \param max_repeats The maximum number of consecutive repetitions to mark retrieved data as corrupted.
    * \return the number of connected devices.
-   * \sa qb_device_driver::qbDeviceAPI::getDeviceIds(), qb_device_driver::qbDeviceAPI::getSerialPorts(), isInConnectedSet(), open()
+   * \sa open(), qbrobotics_research_api::Communication::listSerialPorts, qbrobotics_research_api::Communication::listConnectedDevices, close()
    */
   virtual int getSerialPortsAndDevices(const int &max_repeats);
 
@@ -242,7 +235,7 @@ class qbDeviceCommunicationHandler {
    * \param max_repeats The maximum number of consecutive repetitions to mark retrieved data as corrupted.
    * \param status \p true if the device motors are on.
    * \return The number of failure reads between \p 0 and \p max_repeats.
-   * \sa qb_device_driver::qbDeviceAPI::getStatus()
+   * \sa qbrobotics_research_api::getMotorStates()
    */
   virtual int isActive(const int &id, const int &max_repeats, bool &status);
 
@@ -269,7 +262,7 @@ class qbDeviceCommunicationHandler {
    * \return \p true if the given serial port belongs to the open file descriptor map, i.e. \p file_descriptors_.
    * \sa open(), close()
    */
-  virtual bool isInOpenMap(const std::string &serial_port);
+  //virtual bool isInOpenMap(const std::string &serial_port);
 
   /**
    * Initialize the device node requesting the service to the Communication Handler if the relative physical device is
@@ -281,15 +274,6 @@ class qbDeviceCommunicationHandler {
    * \sa getSerialPortsAndDevices()
    */
   virtual bool initializeCallback(qb_device_srvs::InitializeDeviceRequest &request, qb_device_srvs::InitializeDeviceResponse &response);
-
-  /**
-   * Open the serial communication on the given serial port. On success, store the opened file descriptor in the
-   * private map \p file_descriptors_, i.e. insert a pair [\p serial_port, \p file_descriptor].
-   * \param serial_port The serial port which has to be opened, e.g. \p /dev/ttyUSB0.
-   * \return \p 0 on success.
-   * \sa qb_device_driver::qbDeviceAPI::open(), close(), isInOpenMap()
-   */
-  virtual int open(const std::string &serial_port);
 
   /**
    * Send the reference command to the motors of the given device and wait for acknowledge.
@@ -353,14 +337,24 @@ class qbDeviceCommunicationHandler {
   int setControlMode(const int &id, const int &max_repeats, uint8_t &control_id);
 
   /**
-   * Set (temporarily, i.e. until power off) the position control PID parameters of the device relative to the node
+   * Set (temporarily, i.e. until power off) the control mode parameters of the device relative to the node
    * requesting the service.
-   * \param request The request of the given service (see qb_device_srvs::SetPID for details).
-   * \param response The response of the given service (see qb_device_srvs::SetPID for details).
+   * \param request The request of the given service (see qb_device_srvs::setControlMode for details).
+   * \param response The response of the given service (see qb_device_srvs::setControlMode for details).
    * \return \p true if the call succeed (actually \p response.success may be false).
-   * \sa setPID()
+   * \sa setControlMode()
    */
   bool setControlModeCallback(qb_device_srvs::SetControlModeRequest &request, qb_device_srvs::SetControlModeResponse &response);
+
+  /**
+   * Send the device to HOME position.
+   * \warning if this service is used while a trajectory for the device is defined, the device will move to home and then will return 
+   * to the position preceding the call of this service. In such a case, use the service in qbdevice_control. 
+   * \param request The request of the given service (see qb_device_srvs::setControlMode for details).
+   * \param response The response of the given service (see qb_device_srvs::setControlMode for details).
+   * \return \p true if the call succeed (actually \p response.success may be false).
+   */
+  bool goToHomeCallback(qb_device_srvs::TriggerRequest &request, qb_device_srvs::TriggerResponse &response);
 
  private:
   ros::AsyncSpinner spinner_;
@@ -372,10 +366,19 @@ class qbDeviceCommunicationHandler {
   ros::ServiceServer set_commands_;
   ros::ServiceServer set_pid_;
   ros::ServiceServer set_control_mode_;
+  ros::ServiceServer go_to_home_;
   ros::WallTimer check_connection_status_timer_;
   ros::Publisher connection_state_publisher_;
   qb_device_msgs::ConnectionState connection_state_msg_;
-  qb_device_driver::qbDeviceAPIPtr device_api_;
+
+  // handlers to manage the communication with qbdevices
+  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_;
+  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_legacy_;
+  // Communication ports
+  std::vector<serial::PortInfo> serial_ports_;
+  std::map<int, std::shared_ptr<qbrobotics_research_api::Device>> devices_;
+  // IDs of connected devices 
+  std::vector<qbrobotics_research_api::Communication::ConnectedDeviceInfo> device_ids_;
 
   /**
    * Activate (or deactivate, according to the given command) the motors of the given device. Do nothing if the device
@@ -383,7 +386,7 @@ class qbDeviceCommunicationHandler {
    * \param id The ID of the device to be activated (or deactivated), in range [\p 1, \p 128].
    * \param command \p true to turn motors on, \p false to turn them off.
    * \param max_repeats The maximum number of consecutive repetitions to mark retrieved data as corrupted.
-   * \sa qb_device_driver::qbDeviceAPI::activate(), activate(const int &, const int &), deactivate(), isActive()
+   * \sa qbrobotics_research_api::Device::setMotorStates(), isActive()
    */
   virtual int activate(const int &id, const bool &command, const int &max_repeats);
 

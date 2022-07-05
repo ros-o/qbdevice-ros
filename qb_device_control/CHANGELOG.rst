@@ -2,6 +2,10 @@
 Changelog for package qb_device_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.0 (2022-07-05)
+------------------
+* Created service for Homing SHR2
+
 2.3.4 (2022-04-08)
 ------------------
 
