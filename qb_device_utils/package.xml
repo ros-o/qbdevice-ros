@@ -1,6 +1,6 @@
 <package format="2">
   <name>qb_device_utils</name>
-  <version>3.0.0</version>
+  <version>3.0.1</version>
   <description>
     This package contains a device-independent utility functions for qbrobotics® devices.
   </description>

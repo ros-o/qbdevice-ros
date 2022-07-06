@@ -2,6 +2,9 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.1 (2022-07-06)
+------------------
+
 3.0.0 (2022-07-05)
 ------------------
 * New API migration. qb_device_driver class is no longer required.
