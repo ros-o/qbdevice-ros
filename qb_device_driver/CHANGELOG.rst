@@ -2,6 +2,10 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.4 (2022-07-18)
+------------------
+* package compiled with qbdevice-api v1.1.3
+
 3.0.3 (2022-07-15)
 ------------------
 * package compiled with qbdevice-api v1.1.2
