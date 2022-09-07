@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0.4 FATAL_ERROR)
-project(qb_device_hardware_interface VERSION 3.0.4 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
+project(qb_device_hardware_interface VERSION 3.0.5 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -8,6 +8,7 @@ find_package(catkin REQUIRED
     hardware_interface
     joint_limits_interface
     transmission_interface
+    control_msgs
     urdf
     qb_device_msgs
     qb_device_srvs
@@ -27,6 +28,7 @@ catkin_package(
     hardware_interface
     joint_limits_interface
     transmission_interface
+    control_msgs
     urdf
     qb_device_msgs
     qb_device_srvs

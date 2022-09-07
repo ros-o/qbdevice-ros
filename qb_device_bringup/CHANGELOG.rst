@@ -2,6 +2,12 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.5 (2022-09-07)
+------------------
+* MINOR FIX: Changed cmake version required in all packages (current version 3.0.2).
+* Bug fixed when executing the waypoint movement and different controller with different number of controller joints are loaded.
+* Changed device controller bringup to load properly the device controller.
+
 3.0.4 (2022-07-18)
 ------------------
 

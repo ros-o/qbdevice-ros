@@ -21,7 +21,6 @@
       <include file="$(find qb_device_control)/launch/spawner_template.launch">
         <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
                                               $(arg device_name)_synergies_trajectory_controller"/>
-                                          <!--$(arg device_name)_motor_positions_trajectory_controller-->
       </include>
       <!-- load the single motor controller-->
       <node name="$(anon controller_spawner)" pkg="controller_manager" type="controller_manager"
@@ -29,15 +28,28 @@
             args="load $(arg device_name)_motor_positions_trajectory_controller"/>
     </group>
 
-    <group if="$(eval device_type == 'qbmove' or device_type =='qbclaw')">
+    <group if="$(eval device_type == 'qbmove')">
       <rosparam file="$(eval find('qb_move_control') + '/config/qbmove_controllers.yaml')" command="load" subst_value="true"/>
 
       <!-- spawn the controllers in current namespace -->
       <include file="$(find qb_device_control)/launch/spawner_template.launch">
         <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
                                               $(arg device_name)_position_and_preset_trajectory_controller"/>
-                                          <!--$(arg device_name)_motor_positions_trajectory_controller-->
       </include>
+    </group>
+
+    <group if="$(eval device_type =='qbclaw')">
+      <rosparam file="$(eval find('qb_move_control') + '/config/qbmove_controllers.yaml')" command="load" subst_value="true"/>
+      
+      <!-- spawn the controllers in current namespace -->
+      <include file="$(find qb_device_control)/launch/spawner_template.launch">
+        <arg name="device_controllers" value="$(arg device_name)_joint_state_controller
+                                              $(arg device_name)_deflection_trajectory_controller"/>
+      </include>
+
+      <node name="$(anon controller_spawner)" pkg="controller_manager" type="controller_manager"
+          respawn="false" output="screen"
+          args="load $(arg device_name)_position_and_preset_trajectory_controller"/>
     </group>
   </group>
 
@@ -49,8 +61,11 @@
     <group if="$(eval device_type == 'qbhand2m')">
       <param name="default_controller" type="str" value="/control/$(arg device_name)_synergies_trajectory_controller"/>
     </group>
-    <group if="$(eval device_type == 'qbmove' or device_type =='qbclaw')">
+    <group if="$(eval device_type == 'qbmove')">
       <param name="default_controller" type="str" value="/control/$(arg device_name)_position_and_preset_trajectory_controller"/>
+    </group>
+    <group if="$(eval device_type =='qbclaw')">
+      <param name="default_controller" type="str" value="/control/$(arg device_name)_deflection_trajectory_controller"/>
     </group>
   </group>
 </launch>

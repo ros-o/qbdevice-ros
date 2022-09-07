@@ -312,9 +312,27 @@ void qbDeviceControl::initActionClients() {
   }
 }
 
+void qbDeviceControl::getControllersState() {
+  ros::ServiceClient list_controllers_srv = node_handle_.serviceClient<controller_manager_msgs::ListControllers>(node_handle_control_.getNamespace() + "/controller_manager/list_controllers");
+  ros::service::waitForService(node_handle_control_.getNamespace() + "/controller_manager/list_controllers");
+  controller_manager_msgs::ListControllers list_controller;
+  list_controllers_srv.call(list_controller);
+  if(list_controller.response.controller.empty()){
+    ROS_ERROR_STREAM_NAMED("robot_control", "Cannot get the state of the loaded controller(s).");
+    return;
+  }
+  for (auto controller:list_controller.response.controller){
+    controllers_state_.insert(std::make_pair(controller.name, controller.state));
+    ROS_INFO_STREAM_NAMED("robot_control", "The state of " << controller.name << " is " << controller.state);
+  }
+}
+
 void qbDeviceControl::move() {
   for (auto const &controller : controllers_) {
-    move(joint_trajectories_.at(controller), controller);
+    if(joint_trajectories_.find(controller) != joint_trajectories_.end()) {
+      ROS_INFO_STREAM_ONCE_NAMED("robot_control", "A valid trajectory to be execued with controller " << controller << " is found.");
+      move(joint_trajectories_.at(controller), controller);
+    }
   }
 }
 
@@ -330,7 +348,7 @@ void qbDeviceControl::move(const trajectory_msgs::JointTrajectory &joint_traject
 
 bool qbDeviceControl::parseVector(const XmlRpc::XmlRpcValue &xml_value, const std::string &controller, std::vector<double> &vector) {
   if (xml_value.size() != controller_joints_.at(controller).size()) {
-    ROS_ERROR_STREAM_NAMED("robot_control", "Device [" << controller_device_name_.at(controller) << "] fails while setting the joint trajectory (joints size mismatch).");
+    ROS_WARN_STREAM_NAMED("robot_control", "Device [" << controller_device_name_.at(controller) << "] cannot set the joint trajectory (joints size mismatch) to be used with " << controller << ".");
     return false;
   }
   for (int j=0; j<xml_value.size(); j++) {

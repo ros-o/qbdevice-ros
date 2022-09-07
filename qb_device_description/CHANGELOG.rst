@@ -2,6 +2,10 @@
 Changelog for package qb_device_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.5 (2022-09-07)
+------------------
+* MINOR FIX: Changed cmake version required in all packages (current version 3.0.2).
+
 3.0.4 (2022-07-18)
 ------------------
 

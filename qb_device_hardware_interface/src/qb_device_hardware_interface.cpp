@@ -53,7 +53,7 @@ int qbDeviceHW::activateMotors() {
       ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot activate device [" << device_.id << "].");
       return -1;
     }
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] device [" << device_.id << "] motors are active!");
+    ROS_INFO_STREAM_NAMED("device_hw", "[DeviceHW] device [" << device_.id << "] motors are active!");
     return 0;
   }
   ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] service [activate_motors] seems no longer advertised. Trying to reconnect...");

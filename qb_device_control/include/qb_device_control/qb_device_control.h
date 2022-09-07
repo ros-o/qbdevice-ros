@@ -171,6 +171,7 @@ class qbDeviceControl {
   std::vector<std::string> device_names_;
   std::vector<std::string> controllers_;
   std::map<std::string, std::string> controller_device_name_;
+  std::map<std::string, std::string> controllers_state_;
   std::map<std::string, std::vector<std::string>> controller_joints_;
   std::map<std::string, std::unique_ptr<actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>>> action_clients_;
   std::map<std::string, trajectory_msgs::JointTrajectory> joint_trajectories_;
@@ -265,6 +266,11 @@ class qbDeviceControl {
    * Action Clients. Also set few additional member variables.
    */
   void initActionClients();
+
+  /**
+   * Retrieve the state of all declared controllers and fill the map \p controllers_state_
+   */
+  void getControllersState();
 
   /**
    * Parse the given \p XmlRpcValue as a \p std::vector, since the \p XmlRpc::XmlRpcValue class does not handle this
