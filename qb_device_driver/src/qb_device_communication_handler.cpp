@@ -151,9 +151,21 @@ int qbDeviceCommunicationHandler::getSerialPortsAndDevices(const int &max_repeat
   serial_ports_.clear();
   device_ids_.clear();
   devices_.clear();
-  if (communication_handler_->listSerialPorts(serial_ports_) <= 0) {
+  std::string serial_port_name;
+  if(node_handle_.getParam("/qb_device_communication_handler/serial_port_name", serial_port_name)){ // If 'serial_port_name' param is specified, then try to connect to that port
+    if (!communication_handler_->createSerialPort(serial_port_name)) {
+      serial::PortInfo port;
+      port.serial_port = serial_port_name;
+      serial_ports_.push_back(port);
+    } else {
+      ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] Cannot open " << serial_port_name);
+      return -1;
+    }
+  } else {
+    if (communication_handler_->listSerialPorts(serial_ports_) <= 0) {
       ROS_ERROR_STREAM_NAMED("communication_handler", "[CommunicationHandler] No serial ports found!");
       return -1;
+    }
   }
   int devices_retrieved;
   ros::Duration(1).sleep();
@@ -174,7 +186,7 @@ int qbDeviceCommunicationHandler::getSerialPortsAndDevices(const int &max_repeat
         int failures = 0;
         while (failures <= max_repeats) {
           try { // TODO: differentiate the devices
-            if (device_id.type == "001" || device_id.type == "006") {  // device S/N can be retireved only from new device firmware. They can use communication_handler_
+            if (device_id.type == "001" || (device_id.type == "006" && device_id.sub_type == "100")) {  // device S/N can be retireved only from new device firmware. They can use communication_handler_
               devices_.insert(std::make_pair(static_cast<int>(device_id.id), std::make_shared<qbrobotics_research_api::Device>(communication_handler_, "dev", serial_port.serial_port, device_id.id)));
               connected_devices_.insert(std::make_pair(static_cast<int>(device_id.id), serial_port.serial_port));
               ROS_INFO_STREAM_NAMED("communication_handler", "[CommunicationHandler] Connected to device with id: "<< (int)device_id.id);
@@ -306,7 +318,7 @@ int qbDeviceCommunicationHandler::getParameters(const int &id, std::vector<int32
   devices_.at(id)->getParams()->getParameter<uint8_t>(6, param_buffer, control_mode);
   devices_.at(id)->getParams()->getParameter<int32_t>(11, param_buffer, limits);
   devices_.at(id)->getParams()->getParameter<uint8_t>(7, param_buffer, resolutions);
-  if (control_mode == 0 || control_mode == 4) {  // both input and control modes equals 0 are required, i.e. respectively USB connected and position controlled (also deflection control is possible with qbmoves)
+  if (control_mode == 0 || control_mode == 4 || control_mode == 3) {  // both input and control modes equals 0 are required, i.e. respectively USB connected and position/position-current controlled (also deflection control is possible with qbmoves)
     return 0;
   }
   return -1;

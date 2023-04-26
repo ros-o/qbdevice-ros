@@ -2,6 +2,11 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.6 (2023-04-26)
+------------------
+* FEAT: Added compatibility with new FW version of SHR
+* MINOR FIX: Changed the name of the package maintainer
+
 3.0.5 (2022-09-07)
 ------------------
 * MINOR FIX: Changed cmake version required in all packages (current version 3.0.2).

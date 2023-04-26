@@ -1,11 +1,11 @@
 <package format="2">
   <name>qb_device_description</name>
-  <version>3.0.5</version>
+  <version>3.0.6</version>
   <description>
     This package contains a device-independent description utilities for qbrobotics® devices.
   </description>
   <author>qbrobotics®</author>
-  <maintainer email="alessandro.tondo@qbrobotics.com">Alessandro Tondo</maintainer>
+  <maintainer email="support@qbrobotics.com">qb Support Team</maintainer>
   <license>BSD 3-Clause</license>
 
   <url type="bugtracker">https://bitbucket.org/qbrobotics/qbdevice-ros/issues</url>

@@ -2,6 +2,12 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.6 (2023-04-26)
+------------------
+* FEAT: added option to specify the serial port to connect to. This can be useful when is desired to use the device with virtual ports (e.g. UR)
+* FEAT: Added compatibility with new FW version of SHR
+* MINOR FIX: Changed the name of the package maintainer
+
 3.0.5 (2022-09-07)
 ------------------
 * MINOR FIX: Changed cmake version required in all packages (current version 3.0.2).

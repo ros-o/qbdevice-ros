@@ -63,7 +63,7 @@
 
     <node name="robot_model_spawner" pkg="gazebo_ros" type="spawn_model"
           respawn="false" output="log"
-          args="-param $(arg robot_namespace)/robot_description -urdf -model $(arg robot_name)"/>
+          args="-param $(arg robot_namespace)/robot_description -urdf -model $(arg device_name)"/>
 
     <!-- this seems to be required when spawning controllers with Gazebo (actually a bit silly since it is already under '/robot_namespace') -->
     <group ns="$(arg robot_namespace)/control">

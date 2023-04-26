@@ -219,47 +219,10 @@ bool qbDeviceHW::init(ros::NodeHandle &root_nh, ros::NodeHandle &robot_hw_nh) {
     ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot retrieve 'default_controller' from the Parameter Server [" << robot_hw_nh.getNamespace() << "].");
     return false;
   }
-  std::vector<std::string> default_controller_joints;
-  if (!robot_hw_nh.getParam(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/joints", default_controller_joints)) {
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot retrieve 'joints' from the controller in the Parameter Server [" << ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller  << "].");
-    return false;
-  }
-  std::vector<double> commands;
-  if (getCommands(commands) == -1) {
-    ROS_ERROR_STREAM_THROTTLE_NAMED(60 ,"device_hw", "[DeviceHW] cannot retrieve command references from device [" << device_.id << "].");
-    return false;
-  }
-  // actual joint commands (coming from actual device references) are required while initializing the joint limit interface (to set the starting old command for enforceLimits())
-  joints_.commands.at(0) = commands.at(0);
-  if (joints_.commands.size() > 1) { //FIXME: try to implement me in the device specific package
-    joints_.commands.at(1) = commands.at(1);
-  }
-  if (joints_.commands.size() == 4) {  //FIXME: try to implement me in the device specific package
-    joints_.commands.at(2) = (commands.at(0) + commands.at(1)) / 2;
-    joints_.commands.at(3) = std::abs(commands.at(0) - commands.at(1)) / 2;
-  }
   joint_limits_.initialize(robot_hw_nh, joints_, urdf_model_, interfaces_.joint_position);
 
   controller_first_command_publisher_ = node_handle_.advertise<trajectory_msgs::JointTrajectory>(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/command", 1);
   controller_state_subscriber_ = node_handle_.subscribe(ros::names::parentNamespace(robot_hw_nh.getNamespace()) + default_controller + "/state", 1, &qbDeviceHW::controllerStatusCallback, this);
-  trajectory_msgs::JointTrajectoryPoint point;
-  point.positions.resize(commands.size());
-  point.velocities.resize(commands.size());
-  point.accelerations.resize(commands.size());
-  point.effort.resize(commands.size());
-  if (joints_.commands.size() == 4) {  //FIXME: try to implement me in the device specific package
-    point.positions.at(0) = joints_.commands.at(2);
-    point.positions.at(1) = joints_.commands.at(3);
-  } else if (joints_.commands.size() == 2){ //FIXME: try to implement me in the device specific package
-    point.positions.at(0) = joints_.commands.at(0);
-    point.positions.at(1) = joints_.commands.at(1);
-  } else {
-    point.positions.at(0) = joints_.commands.at(0);
-  }
-  point.time_from_start = ros::Duration(0.1);
-  controller_first_point_trajectory_.points.push_back(point);
-  controller_first_point_trajectory_.joint_names = default_controller_joints;
-  // cannot publish it yet (the controller has not been spawned yet) first_command_publisher_.publish(first_point_trajectory_);
 
   controller_startup_sync_publisher_ = root_nh.advertise<std_msgs::Header>("control/startup_sync", 1);  // WARN: root_nh is different!
 
