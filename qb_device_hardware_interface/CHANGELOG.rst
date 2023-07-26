@@ -2,6 +2,9 @@
 Changelog for package qb_device_hardware_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.1.0 (2023-07-26)
+------------------
+
 3.0.6 (2023-04-26)
 ------------------
 * FEAT: Added compatibility with new FW version of SHR

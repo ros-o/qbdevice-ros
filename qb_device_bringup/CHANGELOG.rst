@@ -2,6 +2,9 @@
 Changelog for package qb_device_bringup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.1.0 (2023-07-26)
+------------------
+
 3.0.6 (2023-04-26)
 ------------------
 * FIX: gazebo entity name setted as device_name (not device type). This caused errors when devices gazebo nodes start

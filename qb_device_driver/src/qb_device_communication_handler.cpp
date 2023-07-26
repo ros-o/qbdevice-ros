@@ -29,7 +29,9 @@
 
 using namespace qb_device_communication_handler;
 
-qbDeviceCommunicationHandler::qbDeviceCommunicationHandler()
+qbDeviceCommunicationHandler::qbDeviceCommunicationHandler(): qbDeviceCommunicationHandler(true){}
+
+qbDeviceCommunicationHandler::qbDeviceCommunicationHandler(bool scan)
     : spinner_(11),  // 10 is the maximum number of connected serial ports (cr. API)
       node_handle_(ros::NodeHandle()),
       activate_motors_(node_handle_.advertiseService("/communication_handler/activate_motors", &qbDeviceCommunicationHandler::activateCallback, this)),
@@ -44,13 +46,14 @@ qbDeviceCommunicationHandler::qbDeviceCommunicationHandler()
       connection_state_publisher_(node_handle_.advertise<qb_device_msgs::ConnectionState>("/communication_handler/connection_state",1)),
       communication_handler_(std::make_shared<qbrobotics_research_api::Communication>()),
       communication_handler_legacy_(std::make_shared<qbrobotics_research_api::CommunicationLegacy>(*communication_handler_)){ // make shared pointer that handles the communication {
-  while (!getSerialPortsAndDevices(3)) {
-    ROS_WARN_STREAM_NAMED("communication_handler", "[CommunicationHandler] is waiting for devices...");
-    ros::Duration(1.0).sleep();
+  if (scan){  
+    while (!getSerialPortsAndDevices(3)) {
+      ROS_WARN_STREAM_NAMED("communication_handler", "[CommunicationHandler] is waiting for devices...");
+      ros::Duration(1.0).sleep();
+    }
+    checkActivation();
+    spinner_.start();
   }
-  check_connection_status_timer_ = node_handle_.createWallTimer(ros::WallDuration(1), &qbDeviceCommunicationHandler::checkConnectionAndPublish, this);
-  spinner_.start();
-  
 }
 
 qbDeviceCommunicationHandler::~qbDeviceCommunicationHandler() {
@@ -98,6 +101,10 @@ bool qbDeviceCommunicationHandler::activateCallback(qb_device_srvs::TriggerReque
   response.failures = activate(request.id, request.max_repeats);
   response.success = isReliable(response.failures, request.max_repeats);
   return true;
+}
+
+void qbDeviceCommunicationHandler::checkActivation() {
+  check_connection_status_timer_ = node_handle_.createWallTimer(ros::WallDuration(1), &qbDeviceCommunicationHandler::checkConnectionAndPublish, this);
 }
 
 int qbDeviceCommunicationHandler::close(const std::string &serial_port) {
@@ -318,7 +325,10 @@ int qbDeviceCommunicationHandler::getParameters(const int &id, std::vector<int32
   devices_.at(id)->getParams()->getParameter<uint8_t>(6, param_buffer, control_mode);
   devices_.at(id)->getParams()->getParameter<int32_t>(11, param_buffer, limits);
   devices_.at(id)->getParams()->getParameter<uint8_t>(7, param_buffer, resolutions);
-  if (control_mode == 0 || control_mode == 4 || control_mode == 3) {  // both input and control modes equals 0 are required, i.e. respectively USB connected and position/position-current controlled (also deflection control is possible with qbmoves)
+  if (control_mode == 0 // posizione
+  || control_mode == 4  // deflessione (qbmove)
+  || control_mode == 3 // posizione/corrente
+  || control_mode == 5) {  // deflessione/corrente
     return 0;
   }
   return -1;

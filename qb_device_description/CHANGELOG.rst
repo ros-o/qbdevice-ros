@@ -2,6 +2,9 @@
 Changelog for package qb_device_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.1.0 (2023-07-26)
+------------------
+
 3.0.6 (2023-04-26)
 ------------------
 * MINOR FIX: Changed the name of the package maintainer

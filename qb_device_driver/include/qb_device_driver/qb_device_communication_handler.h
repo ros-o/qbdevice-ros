@@ -36,7 +36,7 @@
 #include <ros/ros.h>
 
 // internal libraries
-#include <serial/serial.h>
+#include <serial.h>
 #include <qbrobotics_research_api/qbsofthand2_research_api.h>
 #include <qb_device_msgs/ConnectionState.h>
 #include <qb_device_srvs/qb_device_srvs.h>
@@ -65,6 +65,12 @@ class qbDeviceCommunicationHandler {
    */
   qbDeviceCommunicationHandler();
 
+  /**
+   * @brief Construct a new qb Device Communication Handler object
+   * @param scan \p true if you want to scan serial ports and check the connection 
+   * otherwise with \p false you will not either start the spinner
+   */
+  qbDeviceCommunicationHandler(bool scan);
 
   /**
    * Close all the still open serial ports.
@@ -76,6 +82,15 @@ class qbDeviceCommunicationHandler {
   ros::NodeHandle node_handle_;
   std::map<std::string, std::unique_ptr<std::mutex>> serial_protectors_;  // only callbacks must lock the serial resources
   std::map<int, std::string> connected_devices_;
+
+  // handlers to manage the communication with qbdevices
+  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_;
+  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_legacy_;
+  // Communication ports
+  std::vector<serial::PortInfo> serial_ports_;
+  std::map<int, std::shared_ptr<qbrobotics_research_api::Device>> devices_;
+  // IDs of connected devices 
+  std::vector<qbrobotics_research_api::Communication::ConnectedDeviceInfo> device_ids_;
 
   /**
    * Activate the motors of the given device. Do nothing if the device is not connected in the Communication Handler.
@@ -100,7 +115,11 @@ class qbDeviceCommunicationHandler {
    * \sa open(), qbrobotics_research_api::Communication::closeSerialPort
    */
   virtual int close(const std::string &serial_port);
-
+  
+  /**
+   * Starts walltimer then check comunication
+   */
+  void checkActivation();
 
   /**
    * Called by check_connection_status_timer_. It verify if a qbdevice is connected or not
@@ -370,15 +389,6 @@ class qbDeviceCommunicationHandler {
   ros::WallTimer check_connection_status_timer_;
   ros::Publisher connection_state_publisher_;
   qb_device_msgs::ConnectionState connection_state_msg_;
-
-  // handlers to manage the communication with qbdevices
-  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_;
-  std::shared_ptr<qbrobotics_research_api::Communication> communication_handler_legacy_;
-  // Communication ports
-  std::vector<serial::PortInfo> serial_ports_;
-  std::map<int, std::shared_ptr<qbrobotics_research_api::Device>> devices_;
-  // IDs of connected devices 
-  std::vector<qbrobotics_research_api::Communication::ConnectedDeviceInfo> device_ids_;
 
   /**
    * Activate (or deactivate, according to the given command) the motors of the given device. Do nothing if the device

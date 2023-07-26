@@ -2,6 +2,13 @@
 Changelog for package qb_device_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.1.0 (2023-07-26)
+------------------
+* Updated Submodule
+* FIX: submodules updated and current/deflection control mode check
+* FIX: Conflict with ros-serial
+* Tested code with modification and new API
+
 3.0.6 (2023-04-26)
 ------------------
 * FEAT: added option to specify the serial port to connect to. This can be useful when is desired to use the device with virtual ports (e.g. UR)

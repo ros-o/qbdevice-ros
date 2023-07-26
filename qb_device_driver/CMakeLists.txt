@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
-project(qb_device_driver VERSION 3.0.6 LANGUAGES CXX)
+project(qb_device_driver VERSION 3.1.0 LANGUAGES CXX)
 
 # Dependency Settings
 find_package(catkin REQUIRED
@@ -27,6 +27,11 @@ catkin_package(
 add_executable(qb_device_communication_handler
   src/main.cpp
   src/qb_device_communication_handler.cpp
+)
+
+target_include_directories(qb_device_communication_handler
+  PRIVATE
+    ${Serial_SOURCE_DIR}/include/serial
 )
 
 target_link_libraries(qb_device_communication_handler
