@@ -34,8 +34,10 @@ int main(int argc, char** argv) {
 
   {
     qb_device_control::qbDeviceControl qb_device_control;
+    ros::Rate rate(1000);
     while (!ros_sigint_handler::isShuttingDown()) {
       ros::spinOnce();
+      rate.sleep();
     }
     // all the destructors are called before 'ros::shutdown()'
     // DO NOT remove brackets!

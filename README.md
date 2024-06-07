@@ -13,7 +13,24 @@ Please, refer to the following wikis respectively if you are dealing with a _qbh
 1. [Purchase](#markdown-header-purchase)
 
 ## Usage
->Even if these ROS packages can be installed properly as a standalone application, they are barely usable alone. Please, refer to [_qbhand_](http://wiki.ros.org/Robots/qbhand) and/or [_qbmove_](http://wiki.ros.org/Robots/qbmove) for detailed information of how to setup and use the specific ROS packages for your _qbrobotics®_ device.
+1. Clone the `qb_device` packages to your colcon Workspace, e.g. `~/catkin_ws`:
+   ```
+   cd `~/catkin_ws/src`
+   git clone --recurse-submodules https://bitbucket.org/qbrobotics/qbdevice-ros.git
+   cd qbdevice-ros
+   git checkout production-noetic
+   git submodule update --init --recursive
+   ```
+
+1. Compile the packages using `catkin`:
+   ```
+   cd `~/catkin_ws`
+   catkin build
+   ```
+   **Note:** depending on your ROS installation, you may need some extra packages to properly compile the code. You can install ROS dependencies using `rosdep`:
+   ```
+   cd `~/catkin_ws`
+   rosdep install --from-paths src --ignore-src -r -y
 
 >Do not be worried if you have already followed the above installation instructions: simply proceed with your specific device installation and everything will be fine.
 
