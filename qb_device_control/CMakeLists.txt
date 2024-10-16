@@ -63,32 +63,6 @@ add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
 )
 
-# C++ Settings
-if (CMAKE_VERSION VERSION_LESS "3.1")
-  target_compile_options(qb_device_default
-    PUBLIC
-      "-std=c++14"
-  )
-  target_compile_options(${PROJECT_NAME}
-    PUBLIC
-      "-std=c++14"
-  )
-else ()
-  set_property(
-    TARGET
-      qb_device_default
-      ${PROJECT_NAME}
-    PROPERTY CXX_STANDARD 14
-  )
-
-  set_property(
-    TARGET
-      qb_device_default
-      ${PROJECT_NAME}
-    PROPERTY CXX_STANDARD_REQUIRED ON
-  )
-endif ()
-
 # Installation
 install(
   TARGETS qb_device_default
